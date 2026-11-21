@@ -107,7 +107,7 @@ Extension support comes from [electron-chrome-extensions](https://github.com/sam
 That Keychain key decrypts your saved logins. macOS asks once after you install or update Stage. Choose **Always Allow**, or sites will treat you as signed out.
 
 **Is it signed or notarized?**
-It doesn't need to be. On first launch, Stage copies Electron's Chromium app on your own Mac, names it Stage and gives it a local signature, the same kind Electron itself ships with. That copy lives in `~/Library/Application Support/Stage/Runtime/` and takes almost no disk space.
+It doesn't need to be. On first launch, Stage copies Electron's Chromium app on your own Mac, names it Stage and gives it a local signature, the same kind Electron itself ships with. That copy lives in `~/Library/Application Support/Stage/Runtime/`.
 
 **Where are my logins and tabs kept?**
 In `~/Library/Application Support/Stage`. npx, a global install and a clone all share it, so you sign in once. Stage reopens your last tabs when it starts, and logs errors to `stage.log` in the same folder instead of interrupting you with a dialog.
@@ -138,7 +138,7 @@ npm run selftest       # scripted end-to-end checks; writes selftest-out/results
 npm run ui:preview     # render the tab bar and address box in mock mode with headless Chrome
 ```
 
-[`docs/CONTRACT.md`](docs/CONTRACT.md) describes the window layout and the interface between the main process (`src/main/`) and the overlay UI (`src/ui/`). The website lives in [`site/`](site/).
+See [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request. [`docs/CONTRACT.md`](docs/CONTRACT.md) describes the window layout and the interface between the main process (`src/main/`) and the overlay UI (`src/ui/`). The website lives in [`site/`](site/).
 
 ---
 
