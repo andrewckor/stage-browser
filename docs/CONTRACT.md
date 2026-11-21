@@ -11,7 +11,7 @@ src/shared/contract.ts      the typed interface below, imported by main, preload
 src/main/main.ts            entry: app lifecycle, window, wiring
 src/main/*.ts               tabs, extensions, menu, persistence, url resolution (main side owns the split)
 src/preload/ui-preload.ts   exposes window.stage (below) to the UI renderer
-src/ui/index.html           the overlay UI: tab bar + omnibox
+src/ui/index.html           the UI window: tab bar, traffic lights, omnibox
 src/ui/styles.css
 src/ui/app.ts
 src/ui/mock.ts              fake window.stage so the UI renders in a plain browser (preview/screenshots)
@@ -23,31 +23,43 @@ scripts/install-cli.sh      symlinks dist/bin/stage.js into ~/.local/bin
 
 `npm run build` compiles `src/` to `dist/` with `tsc` and copies the HTML and CSS alongside. The UI files and `src/preload/extension-compat.ts` compile as classic scripts, not modules: the UI page's CSP allows only `'self'` scripts, and sandboxed preloads have no `exports`.
 
-## Window and views
+## Windows and views
 
-- One `BaseWindow` (macOS `titleBarStyle: 'hidden'`, traffic lights hidden until the bar shows).
-- Each tab is a `WebContentsView` on the persistent session `persist:stage`. Tab views fill the whole content area, unless the bar is **pinned** (then they start at `y = BAR_HEIGHT`).
-- The UI is one more `WebContentsView` with a transparent background, stacked on top of the tab views. It loads `dist/ui/index.html` with `dist/preload/ui-preload.js` (`contextIsolation: true`, `sandbox: false`).
+A presenter usually shares just the Stage window. The audience must see the page and nothing else: no tab bar, no omnibox, no traffic lights. So Stage uses two windows.
 
-### UI view bounds (main process sets these)
+- **The page window**: one `BaseWindow` (macOS `titleBarStyle: 'hidden'`, native traffic lights always hidden). It holds only the tabs. Each tab is a `WebContentsView` on the persistent session `persist:stage`, and tab views always fill the whole content area, pinned or not.
+- **The UI window** (`src/main/ui-window.ts`): a frameless, transparent, shadowless child window of the page window (`parent: win`). It is not resizable, movable or focusable, and it's left out of the Window menu. Its one `WebContentsView` loads `dist/ui/index.html` with `dist/preload/ui-preload.js` (`contextIsolation: true`, `sandbox: false`).
+- `setContentProtection(true)` (NSWindow `sharingType` none) is what keeps the UI out of a share. A window capture of the page window would otherwise include this child window. With protection set, ScreenCaptureKit and `screencapture` leave it out of both window and full-display captures (checked on macOS 26). Protection is per window, which is why the UI can't live in the page window.
+- The child window moves with its parent natively, so it can't lag behind during a drag. Main keeps its size and visibility in step with the parent's resize, full screen, minimize, restore, show and hide. It's destroyed when the parent closes.
+- It is a child window, not a `panel`: a panel would float over other apps and show on every Space.
 
-| State | UI view |
+### UI window bounds (main process sets these)
+
+Relative to the page window's content area (`W × H`), at the same screen origin.
+
+| State | UI window |
 | --- | --- |
-| bar hidden, no overlay | not visible |
-| bar visible, no overlay, not pinned | `{ x: 0, y: 0, width: W, height: BAR_HEIGHT + 20 }`: the extra 20 px is transparent room for the capsule's shadow; the UI passes clicks there to the page (`passClick`) |
-| bar visible, pinned | `{ x: 0, y: 0, width: W, height: BAR_HEIGHT }`: the page starts at `BAR_HEIGHT`, so the UI uses a shadow that fits in the strip |
-| overlay open (omnibox) | full content area `{ 0, 0, W, H }`, focused |
+| bar hidden, no overlay | hidden |
+| bar visible, no overlay, not pinned | `{ x: 0, y: 0, width: W, height: BAR_HEIGHT + 20 }`: the extra 20 px is transparent room for the capsule's shadow, and the mouse goes through it to the page |
+| bar visible, pinned | `{ x: 0, y: 0, width: W, height: BAR_HEIGHT }`: the bar floats over the top of the page, with a shadow that fits in the strip |
+| overlay open (omnibox) | full content area `{ 0, 0, W, H }`, focusable and focused |
 
 `BAR_HEIGHT` is **52** px and is sent in the state (`barHeight`). The UI lays the bar out inside that strip.
+
+### Mouse and keyboard
+
+- The UI window takes the mouse only over the strip (`y < BAR_HEIGHT`) or while the omnibox is open. Everywhere else it ignores the mouse (`setIgnoreMouseEvents(true, { forward: true })`), so clicks go to the page. Main switches this from the polled cursor (below). A click that lands in the shadow room before the next poll reaches the UI, which passes it on with `passClick`.
+- The UI window can't take keyboard focus, so clicking the bar leaves focus on the page. Opening the omnibox makes it focusable and focuses it. Closing the omnibox gives focus back to the page window and the active tab.
+- App menu accelerators (Cmd+L, Cmd+T, Cmd+1–9, ...) work whichever of the two windows is key.
 
 ### Showing and hiding
 
 - Main polls the cursor (~60 ms). When the window is visible and the cursor is inside the window horizontally and within **6 px** of the top of the content area, the bar is revealed.
 - The bar hides once the cursor has been below `BAR_HEIGHT + 24` px for **350 ms**, unless: the bar is pinned, an overlay is open, the UI reports hover (`setBarHover(true)`), or an extension popup is open.
-- Reveal order: main pushes `bar.visible = true`, then makes the view visible. The UI animates in.
-- Hide order: main pushes `bar.visible = false`; the UI plays its exit animation (≤ 160 ms); main hides the view 180 ms later if the bar is still hidden.
-- The macOS traffic lights show and hide with the bar. They sit at the left of the strip, so the UI keeps the leftmost **84 px** of the strip free of controls.
-- Window dragging: the bar's empty background uses `-webkit-app-region: drag`; every control uses `no-drag`.
+- Reveal order: main pushes `bar.visible = true`, then shows the UI window. The UI animates in.
+- Hide order: main pushes `bar.visible = false`; the UI plays its exit animation (≤ 160 ms); main hides the UI window 180 ms later if the bar is still hidden.
+- Traffic lights: the UI draws close, minimize and green buttons (12 px, `#ff5f57` / `#febc2e` / `#28c840`, glyphs on hover) in the leftmost **84 px** of the strip, and they show and hide with the bar. They call `windowAction`: `close`, `minimize` (disabled in full screen), `fullscreen` for green, `zoom` for Option-green.
+- Window dragging: `-webkit-app-region` would drag the child window, not the page window, so it isn't used. A pointerdown on the strip's background (not a tab, button or extension icon) calls `startWindowDrag()`. Main then moves the page window with the cursor until `endWindowDrag()`, sent on the window's `pointerup` or `pointercancel`. Main also stops after 60 s, in case the mouse-up is lost. A double-click there calls `windowAction('double-click')`, which zooms or minimizes per the macOS "double-click a window's title bar" setting.
 
 ## `window.stage` (exposed by the preload)
 
@@ -114,6 +126,9 @@ interface Stage {
   passClick(x: number, y: number, button: number, clickCount: number): void
     // a pointerdown in the transparent band below the strip: main hides the bar at once and
     // sends the click to the active tab at the same window coordinates
+  startWindowDrag(): void                       // pointerdown on the strip background
+  endWindowDrag(): void
+  windowAction(action: 'close' | 'minimize' | 'zoom' | 'fullscreen' | 'double-click'): void
 }
 ```
 
@@ -131,7 +146,7 @@ The preload injects the `<browser-action-list>` custom element from `electron-ch
 <browser-action-list partition="persist:stage" alignment="bottom right"></browser-action-list>
 ```
 
-Main calls `ElectronChromeExtensions.handleCRXProtocol()` on the UI view's session so the icons load. In mock mode the element renders nothing, so the mock should place a stand-in icon.
+Main calls `ElectronChromeExtensions.handleCRXProtocol()` on the UI window's session so the icons load. In mock mode the element renders nothing, so the mock should place a stand-in icon.
 
 ## Terminal launch (no packaging, no signing)
 

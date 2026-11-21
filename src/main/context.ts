@@ -1,9 +1,11 @@
-import type { BaseWindow, Rectangle, Session, WebContentsView } from 'electron'
+import type { BaseWindow, Rectangle, Session } from 'electron'
 import type { ElectronChromeExtensions } from 'electron-chrome-extensions'
 import type { Overlay, StageState } from '../shared/contract'
 import type { Reveal } from './reveal'
 import type { Prefs } from './store'
 import type { Tabs } from './tabs'
+import type { UiWindow } from './ui-window'
+import type { WindowDrag } from './window'
 
 export interface BarFlags {
   visible: boolean
@@ -15,7 +17,8 @@ export interface BarFlags {
 export interface Ctx {
   readonly session: Session
   readonly win: BaseWindow
-  readonly uiView: WebContentsView
+  readonly ui: UiWindow
+  readonly drag: WindowDrag
   readonly tabs: Tabs
   readonly reveal: Reveal
   readonly ext: ElectronChromeExtensions

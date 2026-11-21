@@ -1,4 +1,4 @@
-import { app, Menu, nativeImage, type BaseWindow, session as sessions, type Rectangle, type Session, type WebContentsView } from 'electron'
+import { app, Menu, nativeImage, type BaseWindow, session as sessions, type Rectangle, type Session } from 'electron'
 import type { ElectronChromeExtensions } from 'electron-chrome-extensions'
 import { appendFileSync, existsSync, mkdtempSync, statSync, truncateSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -13,8 +13,9 @@ import { Reveal } from './reveal'
 import { run as runSelftest } from './selftest'
 import { flushHistory, readPrefs, readSession, writePrefs, writeSession, type SavedSession } from './store'
 import { Tabs } from './tabs'
+import { UiWindow } from './ui-window'
 import { resolveInput } from './url'
-import { BAR_HEIGHT, createWindow, tabBounds, uiBounds } from './window'
+import { BAR_HEIGHT, createWindow, tabBounds, uiBounds, WindowDrag } from './window'
 
 const APP_ROOT = resolve(__dirname, '..', '..')
 const SELFTEST = !!process.env.STAGE_SELFTEST
@@ -60,7 +61,8 @@ if (!SELFTEST && !app.requestSingleInstanceLock()) app.exit(0)
 class Stage implements Ctx {
   readonly session: Session
   readonly win: BaseWindow
-  readonly uiView: WebContentsView
+  readonly ui: UiWindow
+  readonly drag: WindowDrag
   readonly tabs: Tabs
   readonly reveal: Reveal
   readonly ext: ElectronChromeExtensions
@@ -72,28 +74,29 @@ class Stage implements Ctx {
   quitting = false
   holdQuit = false
 
-  private readonly endDrag: () => void
   private pushTimer: ReturnType<typeof setTimeout> | undefined
   private saveTimer: ReturnType<typeof setTimeout> | undefined
   private lastSent = ''
 
   constructor(session: Session, saved: Partial<SavedSession>, args: LaunchArgs) {
     this.session = session
-    const { win, uiView } = createWindow(saved.bounds, args.size)
+    const win = createWindow(saved.bounds, args.size)
     this.win = win
-    this.uiView = uiView
+    this.ui = new UiWindow(win)
+    this.drag = new WindowDrag(win)
     this.bar.pinned = !!saved.pinned || args.pin
     this.tabs = new Tabs(this)
     this.reveal = new Reveal(this)
     this.ext = createExtensions(this)
-    this.endDrag = setupIpc(this)
+    setupIpc(this)
     this.rebuildMenu()
 
-    uiView.webContents.on('did-finish-load', () => {
+    const ui = this.ui.view.webContents
+    ui.on('did-finish-load', () => {
       this.lastSent = ''
       this.flush()
     })
-    uiView.webContents.loadFile(join(__dirname, '..', 'ui', 'index.html')).catch((e: Error) => console.error('[stage] UI load failed', e.message))
+    ui.loadFile(join(__dirname, '..', 'ui', 'index.html')).catch((e: Error) => console.error('[stage] UI load failed', e.message))
 
     const relayout = () => {
       if (this.quitting) return
@@ -117,12 +120,12 @@ class Stage implements Ctx {
   }
 
   tabBounds(): Rectangle {
-    return tabBounds(this.win, this.bar.pinned)
+    return tabBounds(this.win)
   }
 
   layout(): void {
-    if (this.win.isDestroyed() || this.uiView.webContents.isDestroyed()) return
-    this.uiView.setBounds(uiBounds(this.win, this.bar.pinned, this.overlay !== null))
+    if (this.win.isDestroyed() || this.ui.win.isDestroyed()) return
+    this.ui.setBounds(uiBounds(this.win, this.bar.pinned, this.overlay !== null))
     this.tabs.layout()
   }
 
@@ -141,7 +144,7 @@ class Stage implements Ctx {
   flush(): void {
     clearTimeout(this.pushTimer)
     this.pushTimer = undefined
-    const wc = this.uiView.webContents
+    const wc = this.ui.view.webContents
     if (!this.live || wc.isDestroyed() || wc.isLoading()) return
     const state = this.getState()
     const json = JSON.stringify(state)
@@ -214,7 +217,7 @@ class Stage implements Ctx {
     this.quitting = true
     clearTimeout(this.pushTimer)
     clearTimeout(this.saveTimer)
-    this.endDrag()
+    this.drag.end()
     this.reveal.stop()
   }
 }

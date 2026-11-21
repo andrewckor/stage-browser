@@ -8,8 +8,21 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <!-- Tab bar: a 52px strip with one floating capsule. The leftmost 84px stay free for the traffic lights. -->
+  <!-- Tab bar: a 52px strip with the traffic lights in its leftmost 84px and one floating capsule.
+       Its background drags the window. -->
   <div id="strip">
+    <div id="lights" role="group" aria-label="Window">
+      <button id="light-close" class="light" type="button" tabindex="-1" aria-label="Close window">
+        <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3.75 3.75l4.5 4.5M8.25 3.75l-4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+      </button>
+      <button id="light-minimize" class="light" type="button" tabindex="-1" aria-label="Minimize window">
+        <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3 6h6" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+      </button>
+      <button id="light-zoom" class="light" type="button" tabindex="-1" aria-label="Enter full screen">
+        <svg class="full" viewBox="0 0 12 12" aria-hidden="true"><path d="M3.5 3.5h3.6L3.5 7.1zM8.5 8.5H4.9l3.6-3.6z" fill="currentColor"/></svg>
+        <svg class="plus" viewBox="0 0 12 12" aria-hidden="true"><path d="M6 3v6M3 6h6" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+      </button>
+    </div>
     <div id="capsule">
       <div id="tabs" role="tablist" aria-label="Tabs"></div>
       <button id="new-tab" class="icon-btn" type="button" aria-label="New tab" title="New tab (⌘T)">
@@ -22,7 +35,7 @@
     </div>
   </div>
 
-  <!-- Omnibox overlay (shown when state.overlay.type === 'omnibox'; the view is then full-window). -->
+  <!-- Omnibox overlay (shown when state.overlay.type === 'omnibox'; the UI window then covers the page). -->
   <div id="omni" hidden>
     <div id="omni-backdrop"></div>
     <div id="omni-panel" role="dialog" aria-label="Open a page or search">

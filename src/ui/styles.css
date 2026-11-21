@@ -65,9 +65,10 @@ svg { display: block; flex: none; }
   display: flex;
   justify-content: center;
   align-items: flex-start;
-  -webkit-app-region: drag;
   pointer-events: none;
 }
+/* The background drags the window (app.ts): the UI is a separate window, so app-region can't. */
+.bar-visible #strip { pointer-events: auto; }
 
 #capsule {
   display: flex;
@@ -85,8 +86,7 @@ svg { display: block; flex: none; }
     0 0 0 .5px var(--edge),
     0 1px 2px rgb(0 0 0 / .08),
     0 4px 10px -2px var(--shadow-c),
-    0 10px 24px -10px var(--shadow-c);  /* reaches ~24px below; main gives the view 20px under the strip */
-  -webkit-app-region: drag;
+    0 10px 24px -10px var(--shadow-c);  /* reaches ~24px below; main gives the window 20px under the strip */
 
   /* exit: quick and quiet */
   opacity: 0;
@@ -95,7 +95,7 @@ svg { display: block; flex: none; }
   transition: opacity 120ms ease-in, transform 120ms ease-in;
   will-change: opacity, transform;
 }
-/* Pinned: the page starts right under the strip, so the view can't grow; keep the shadow inside 8px. */
+/* Pinned: the window keeps to the strip, so keep the shadow inside its 8px. */
 .bar-pinned #capsule {
   box-shadow:
     inset 0 .5px 0 var(--highlight),
@@ -110,8 +110,40 @@ svg { display: block; flex: none; }
   transition: opacity 160ms var(--ease-out), transform 160ms var(--ease-out);
 }
 
-/* every interactive thing opts out of dragging */
-#tabs, #new-tab, browser-action-list, .tab { -webkit-app-region: no-drag; }
+/* ---------- traffic lights ---------- */
+
+/* Drawn here, not native: the native ones belong to the page window, which the audience sees. */
+#lights {
+  position: absolute;
+  left: 20px;
+  top: 20px;                        /* centred on the capsule, 26px down */
+  display: flex;
+  gap: 8px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease-in;
+}
+.bar-visible #lights { opacity: 1; pointer-events: auto; transition: opacity 160ms var(--ease-out); }
+
+.light {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: rgb(0 0 0 / .55);
+  box-shadow: inset 0 0 0 .5px rgb(0 0 0 / .12);
+}
+.light svg { width: 12px; height: 12px; grid-area: 1 / 1; opacity: 0; }
+#lights:hover .light svg { opacity: 1; }
+#light-close { background: #ff5f57; }
+#light-minimize { background: #febc2e; }
+#light-zoom { background: #28c840; }
+#light-zoom .plus, #lights.alt #light-zoom .full { display: none; }
+#lights.alt #light-zoom .plus { display: block; }
+#light-minimize:disabled { background: light-dark(rgb(0 0 0 / .12), rgb(255 255 255 / .18)); }
+#light-minimize:disabled svg { display: none; }
+.light:active { filter: brightness(.85); }
 
 #tabs {
   position: relative;
@@ -253,7 +285,6 @@ svg { display: block; flex: none; }
   opacity: 0;
   pointer-events: none;
   transition: opacity 120ms ease, background-color 120ms ease, color 120ms ease;
-  -webkit-app-region: no-drag;
 }
 .tab:hover .close, .tab.active .close, .close:focus-visible { opacity: 1; pointer-events: auto; }
 .close:hover { background: var(--press); color: var(--text); }

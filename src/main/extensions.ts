@@ -36,7 +36,7 @@ export function createExtensions(ctx: Ctx): ElectronChromeExtensions {
   const compat = join(__dirname, '..', 'preload', 'extension-compat.js')
   ctx.session.registerPreloadScript({ id: 'stage-extension-compat-frame', type: 'frame', filePath: compat })
   ctx.session.registerPreloadScript({ id: 'stage-extension-compat-sw', type: 'service-worker', filePath: compat })
-  ElectronChromeExtensions.handleCRXProtocol(ctx.uiView.webContents.session)
+  ElectronChromeExtensions.handleCRXProtocol(ctx.ui.view.webContents.session)
 
   ext.on('browser-action-popup-created', (popup: ActionPopup) => {
     ctx.reveal.setPopupOpen(true)

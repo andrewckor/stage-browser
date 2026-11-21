@@ -1,4 +1,4 @@
-// Preload for the overlay UI view (sandbox: false, contextIsolation: true).
+// Preload for the UI window's view (sandbox: false, contextIsolation: true).
 import { contextBridge, ipcRenderer } from 'electron'
 import { injectBrowserAction } from 'electron-chrome-extensions/browser-action'
 import { channel, type StageApi, type StageState, type UiCommands, type UiQueries } from '../shared/contract'
@@ -37,6 +37,7 @@ const api: StageApi = {
   passClick: command('passClick'),
   startWindowDrag: command('startWindowDrag'),
   endWindowDrag: command('endWindowDrag'),
+  windowAction: command('windowAction'),
 }
 
 contextBridge.exposeInMainWorld('stage', api)

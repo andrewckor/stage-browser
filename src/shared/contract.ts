@@ -1,4 +1,4 @@
-// The interface between the main process and the overlay UI. See docs/CONTRACT.md.
+// The interface between the main process and the UI window. See docs/CONTRACT.md.
 
 export type TabId = number
 
@@ -54,6 +54,9 @@ export interface SubmitOptions {
   newTab: boolean
 }
 
+// The bar's traffic lights and a title-bar double-click.
+export type WindowAction = 'close' | 'minimize' | 'zoom' | 'fullscreen' | 'double-click'
+
 export interface UiCommands {
   activateTab: [id: TabId]
   closeTab: [id: TabId]
@@ -69,6 +72,7 @@ export interface UiCommands {
   passClick: [x: number, y: number, button: number, clickCount: number]
   startWindowDrag: []
   endWindowDrag: []
+  windowAction: [action: WindowAction]
 }
 
 export interface UiQueries {

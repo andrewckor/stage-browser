@@ -1,5 +1,5 @@
 // Scripted self-test: `npm run selftest`. No human input. Writes results.json and PNGs, exits 0 or 1.
-import { app, BrowserWindow, Menu, shell, type NativeImage, type Size } from 'electron'
+import { app, BaseWindow, BrowserWindow, Menu, shell, type NativeImage, type Rectangle, type Size } from 'electron'
 import { mkdirSync, mkdtempSync, writeFileSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
@@ -77,6 +77,18 @@ function writeExtension(prefix: string, manifest: object, files: Record<string, 
 
 const loaded = (t: Tab) => !t.loading && !!t.url && !!t.title
 
+const sameRect = (a: Rectangle, b: Rectangle) => a.x === b.x && a.y === b.y && a.width === b.width && a.height === b.height
+
+// Resolves on the window event, or after `ms` if it never comes.
+const once = (win: BaseWindow, event: 'enter-full-screen' | 'leave-full-screen' | 'minimize' | 'restore', ms = 3000) =>
+  new Promise<void>((r) => {
+    const t = setTimeout(r, ms)
+    win.once(event as 'minimize', () => {
+      clearTimeout(t)
+      r()
+    })
+  })
+
 export async function run(ctx: Ctx): Promise<void> {
   mkdirSync(OUT, { recursive: true })
   const results: Result[] = []
@@ -99,8 +111,14 @@ export async function run(ctx: Ctx): Promise<void> {
     console.log(`[selftest] ${result.pass ? 'PASS' : 'FAIL'} ${name} ${result.detail}`)
   }
   const save = (name: string, data: string | Buffer) => writeFileSync(join(OUT, name), data)
-  const { tabs, reveal, uiView, win } = ctx
-  const ui = uiView.webContents
+  const { tabs, reveal, win } = ctx
+  const uiWin = ctx.ui.win
+  const ui = ctx.ui.view.webContents
+  // The UI window should sit exactly over the page window's content area, `height` tall.
+  const overContent = (height: number) => {
+    const c = win.getContentBounds()
+    return uiWin.isVisible() && sameRect(uiWin.getBounds(), { ...c, height })
+  }
   const activeTab = (): Tab => {
     const t = tabs.active
     if (!t) throw new Error('no active tab')
@@ -110,9 +128,14 @@ export async function run(ctx: Ctx): Promise<void> {
     for (const t of tabs.list.filter((x) => !keep.includes(x))) tabs.close(t.id)
   }
 
-  await check('window and UI view exist; new tab page present when empty', async () => {
+  await check('page window and UI child window exist; new tab page present when empty', async () => {
     tabs.create()
-    return { pass: tabs.list.length === 1 && !!tabs.list[0]?.newTab, detail: `newtab.html exists=${existsSync(NEWTAB_FILE)}` }
+    const child = win.getChildWindows().some((w) => w.id === uiWin.id) && uiWin.getParentWindow()?.id === win.id
+    const protectedUi = uiWin.isContentProtected() && !uiWin.isFocusable()
+    return {
+      pass: tabs.list.length === 1 && !!tabs.list[0]?.newTab && child && protectedUi,
+      detail: `newtab.html exists=${existsSync(NEWTAB_FILE)} child=${child} protected+unfocusable=${protectedUi}`,
+    }
   })
   only([])
 
@@ -222,43 +245,102 @@ export async function run(ctx: Ctx): Promise<void> {
     return { page: page.getSize(), ui: bar.getSize() }
   }
 
-  await check('reveal bar: state pushed visible, view shown, composite captured', async () => {
+  await check('reveal bar: state pushed visible, UI window shown over the strip, composite captured', async () => {
     reveal.setHover(true) // the real cursor is elsewhere; keep the poller from hiding the bar
-    reveal.show()
-    await sleep(1200)
-    const sizes = await shot('bar-composite')
-    reveal.setHover(false)
-    return { pass: ctx.bar.visible && uiView.getVisible() && sizes.ui.height > 0, detail: JSON.stringify(sizes) }
+    try {
+      reveal.show()
+      await sleep(1200)
+      const sizes = await shot('bar-composite')
+      const over = overContent(72)
+      return { pass: ctx.bar.visible && over && sizes.ui.height > 0, detail: JSON.stringify({ sizes, ui: uiWin.getBounds(), content: win.getContentBounds() }) }
+    } finally {
+      reveal.setHover(false) // a failed capture must not leave the bar pinned for later checks
+    }
   })
 
-  await check('omnibox overlay: full-size UI view, composite captured', async () => {
+  await check('UI window follows the page window when it moves', async () => {
+    reveal.setHover(true)
+    reveal.show()
+    const [x = 0, y = 0] = win.getPosition()
+    win.setPosition(x + 40, y + 30)
+    await sleep(100)
+    const moved = overContent(72)
+    win.setPosition(x, y)
+    await sleep(100)
+    const back = overContent(72)
+    reveal.setHover(false)
+    return { pass: moved && back, detail: JSON.stringify({ moved, back, ui: uiWin.getBounds(), content: win.getContentBounds() }) }
+  })
+
+  await check('omnibox overlay: UI window covers the content area and takes focus, composite captured', async () => {
     reveal.openOverlay('new', '')
     await sleep(800)
     await ui
       .executeJavaScript(`(() => { const i = document.querySelector('input'); if (i) { i.focus(); i.value = 'wiki'; i.dispatchEvent(new Event('input', { bubbles: true })) } return !!i })()`)
       .catch(() => {})
     await sleep(900)
-    const [w, h] = win.getContentSize()
-    const b = uiView.getBounds()
+    const [, h = 0] = win.getContentSize()
+    const full = overContent(h)
+    const focusable = uiWin.isFocusable()
     const sizes = await shot('omnibox-composite')
     reveal.closeOverlay()
-    return { pass: b.width === w && b.height === h && !ctx.overlay, detail: JSON.stringify({ b, sizes }) }
+    const released = !uiWin.isFocusable()
+    return { pass: full && focusable && released && !ctx.overlay, detail: JSON.stringify({ full, focusable, released, sizes }) }
   })
 
-  await check('pin: tab view bounds start at y=52; unpin: y=0', async () => {
+  await check('pin: tab view still fills the content area, UI window is the 52px strip over it', async () => {
     reveal.setPinned(true)
-    const pinned = activeTab().view.getBounds()
-    const [, ch = 0] = win.getContentSize()
+    await sleep(100)
+    const [cw = 0, ch = 0] = win.getContentSize()
+    const fills = sameRect(activeTab().view.getBounds(), { x: 0, y: 0, width: cw, height: ch })
+    const strip = overContent(52)
     reveal.setPinned(false)
-    const y2 = activeTab().view.getBounds().y
-    return { pass: pinned.y === 52 && pinned.height === ch - 52 && y2 === 0, detail: `pinned y=${pinned.y} h=${pinned.height}/${ch}, unpinned y=${y2}` }
+    const unpinned = sameRect(activeTab().view.getBounds(), { x: 0, y: 0, width: cw, height: ch })
+    return { pass: fills && strip && unpinned, detail: JSON.stringify({ fills, strip, unpinned, view: activeTab().view.getBounds() }) }
   })
 
-  await check('hide: state false, UI view invisible after timeout', async () => {
+  await check('hide: state false, UI window hidden after timeout', async () => {
     reveal.hide()
     const stateFalse = !ctx.bar.visible
     await sleep(500)
-    return { pass: stateFalse && !uiView.getVisible(), detail: `uiVisible=${uiView.getVisible()}` }
+    return { pass: stateFalse && !uiWin.isVisible(), detail: `uiVisible=${uiWin.isVisible()}` }
+  })
+
+  await check('minimize hides the UI window; restore brings it back', async () => {
+    reveal.setPinned(true)
+    await sleep(100)
+    const before = overContent(52)
+    const minimized = once(win, 'minimize')
+    win.minimize()
+    await minimized
+    await sleep(200)
+    const hiddenWhileMin = win.isMinimized() && !uiWin.isVisible()
+    const restored = once(win, 'restore')
+    win.restore()
+    await restored
+    await sleep(300)
+    const after = overContent(52)
+    reveal.setPinned(false)
+    reveal.hide()
+    return { pass: before && hiddenWhileMin && after, detail: JSON.stringify({ before, hiddenWhileMin, after }) }
+  })
+
+  await check('full screen: the UI window covers the strip of the full-screen window; leaving restores it', async () => {
+    reveal.setPinned(true)
+    await sleep(100)
+    const entered = once(win, 'enter-full-screen', 5000)
+    win.setFullScreen(true)
+    await entered
+    await sleep(500)
+    const inFull = win.isFullScreen() && overContent(52) && ctx.getState().fullscreen
+    const left = once(win, 'leave-full-screen', 5000)
+    win.setFullScreen(false)
+    await left
+    await sleep(500)
+    const out = !win.isFullScreen() && overContent(52)
+    reveal.setPinned(false)
+    reveal.hide()
+    return { pass: inFull && out, detail: JSON.stringify({ inFull, out, ui: uiWin.getBounds(), content: win.getContentBounds() }) }
   })
 
   await check('floating bar has room for its shadow; clicks under the strip reach the page', async () => {
@@ -271,13 +353,13 @@ export async function run(ctx: Ctx): Promise<void> {
     await waitFor(() => !tab.loading && tab.url.startsWith('data:'))
     reveal.show()
     await sleep(400)
-    const floatH = uiView.getBounds().height
+    const floatH = uiWin.getBounds().height
     for (const type of ['mouseDown', 'mouseUp'] as const) ui.sendInputEvent({ type, x: 420, y: 62, button: 'left', clickCount: 1 })
     const clicked = await waitFor((): Promise<number> => tab.wc.executeJavaScript('window.clicked || 0'), 3000).catch(() => 0)
-    const hidden = !ctx.bar.visible && !uiView.getVisible()
+    const hidden = !ctx.bar.visible && !uiWin.isVisible()
     reveal.setPinned(true)
     await sleep(100)
-    const pinnedH = uiView.getBounds().height
+    const pinnedH = uiWin.getBounds().height
     reveal.setPinned(false)
     reveal.hide()
     tabs.close(tab.id)
@@ -311,10 +393,11 @@ export async function run(ctx: Ctx): Promise<void> {
     return { pass: Object.values(r).every(Boolean), detail: JSON.stringify(r) }
   })
 
-  await check('UI view stays topmost after adding tabs', async () => {
+  await check('the page window holds only tab views', async () => {
     tabs.create({ url: 'about:blank', activate: false })
     const kids = win.contentView.children
-    return { pass: kids.at(-1) === uiView, detail: `children=${kids.length}` }
+    const onlyTabs = kids.length === tabs.list.length && kids.every((v) => tabs.list.some((t) => t.view === v))
+    return { pass: onlyTabs, detail: `children=${kids.length} tabs=${tabs.list.length}` }
   })
 
   await check('content size 1280x720 sets and centers', async () => {
@@ -534,11 +617,13 @@ export async function run(ctx: Ctx): Promise<void> {
     })
   }
 
-  await check('closing the window with a push pending does not throw', async () => {
+  await check('closing the window with a push pending does not throw, and takes the UI window with it', async () => {
     ctx.push()
     win.close()
     await sleep(800) // give the push, poll, save and hide timers a chance to fire
-    return { pass: uncaught.length === 0 && ctx.quitting && win.isDestroyed(), detail: uncaught.join(' | ').slice(0, 400) }
+    const left = BaseWindow.getAllWindows().filter((w) => !w.isDestroyed()).length
+    const ok = uncaught.length === 0 && ctx.quitting && win.isDestroyed() && uiWin.isDestroyed() && ui.isDestroyed() && left === 0
+    return { pass: ok, detail: `windows left=${left} ${uncaught.join(' | ').slice(0, 400)}` }
   })
 
   const failed = results.filter((r) => !r.pass).length

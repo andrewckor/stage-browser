@@ -51,6 +51,7 @@ export class Reveal {
     const b = ctx.win.getContentBounds()
     const insideX = pt.x >= b.x && pt.x < b.x + b.width
     const dy = pt.y - b.y
+    this.syncPointer(insideX && dy >= 0 && dy < BAR_HEIGHT)
     if (insideX && dy >= 0 && dy <= REVEAL_PX) {
       this.awaySince = null
       return this.show()
@@ -65,6 +66,14 @@ export class Reveal {
     else if (Date.now() - this.awaySince >= HIDE_DELAY) this.hide()
   }
 
+  // The UI window takes the mouse over the strip and lets it through to the page below it. The
+  // window can't tell the two apart itself, so this follows the polled cursor; a click that lands
+  // in the shadow room before the next tick is passed on by the UI (passClick).
+  private syncPointer(overStrip: boolean): void {
+    const { ctx } = this
+    ctx.ui.setInteractive(ctx.overlay !== null || ctx.drag.active || overStrip)
+  }
+
   private cancelViewHide(): void {
     clearTimeout(this.viewTimer)
     this.viewTimer = undefined
@@ -74,12 +83,11 @@ export class Reveal {
     const { ctx } = this
     if (!this.live) return
     this.cancelViewHide()
-    if (ctx.bar.visible && ctx.uiView.getVisible()) return
+    if (ctx.bar.visible && ctx.ui.shown) return
     ctx.bar.visible = true
     ctx.layout()
-    ctx.flush() // state first, then the view
-    ctx.uiView.setVisible(true)
-    ctx.win.setWindowButtonVisibility(true)
+    ctx.flush() // state first, then the window
+    ctx.ui.setShown(true)
   }
 
   hide(): void {
@@ -88,11 +96,10 @@ export class Reveal {
     this.awaySince = null
     ctx.bar.visible = false
     ctx.flush()
-    ctx.win.setWindowButtonVisibility(false)
     this.cancelViewHide()
     this.viewTimer = setTimeout(() => {
       this.viewTimer = undefined
-      if (this.live && !ctx.bar.visible && !ctx.overlay) ctx.uiView.setVisible(false)
+      if (this.live && !ctx.bar.visible && !ctx.overlay) this.hideWindow()
     }, VIEW_HIDE_DELAY)
   }
 
@@ -102,7 +109,14 @@ export class Reveal {
     if (!this.live || ctx.overlay || ctx.bar.pinned) return
     this.hide()
     this.cancelViewHide()
-    ctx.uiView.setVisible(false)
+    this.hideWindow()
+  }
+
+  private hideWindow(): void {
+    const { ctx } = this
+    ctx.ui.setShown(false)
+    // No mouseleave arrives once the window is gone.
+    ctx.bar.hover = false
   }
 
   setPinned(pinned: boolean): void {
@@ -133,8 +147,9 @@ export class Reveal {
     this.show()
     ctx.layout()
     ctx.flush()
-    ctx.uiView.setVisible(true)
-    ctx.uiView.webContents.focus()
+    ctx.ui.setShown(true)
+    ctx.ui.setInteractive(true)
+    ctx.ui.focus()
   }
 
   closeOverlay(refocus = true): void {
@@ -143,6 +158,8 @@ export class Reveal {
     ctx.overlay = null
     ctx.layout()
     ctx.flush()
+    ctx.ui.release()
+    this.syncPointer(false)
     if (refocus) ctx.tabs.focusActive()
   }
 
