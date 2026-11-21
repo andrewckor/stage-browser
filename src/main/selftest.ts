@@ -9,6 +9,7 @@ import { parseArgs } from './cli-args'
 import type { Ctx } from './context'
 import { idFromPublicKey, unzip, verifyCrx } from './crx'
 import { installed, type ActionPopup } from './extensions'
+import { firefoxUA, isGoogleSignIn } from './google-sign-in'
 import type { TabLayout } from '../shared/contract'
 import { readPrefs } from './store'
 import { suggest } from './suggest'
@@ -263,6 +264,58 @@ export async function run(ctx: Ctx): Promise<void> {
     const ua: string = await t1.wc.executeJavaScript('navigator.userAgent')
     const bad = /Electron|stage-browser|Stage\//i
     return { pass: !bad.test(ua) && !bad.test(ctx.session.getUserAgent()), detail: ua }
+  })
+
+  await check('google sign-in: firefox version and host rules', async () => {
+    const at = (y: number, m: number, d: number) => /rv:(\d+)/.exec(firefoxUA(Date.UTC(y, m, d)))?.[1]
+    const versions = [at(2025, 0, 1), at(2025, 6, 23), at(2026, 10, 21)]
+    const hosts: [string, boolean][] = [
+      ['https://accounts.google.com/v3/signin/identifier', true],
+      ['http://accounts.google.com/', false],
+      ['https://accounts.google.com.example.com/', false],
+      ['https://myaccount.google.com/', false],
+      ['https://mail.google.com/', false],
+      ['not a url', false],
+    ]
+    const wrong = hosts.filter(([url, want]) => isGoogleSignIn(url) !== want).map(([url]) => url)
+    const pass = versions.join() === '140,140,157' && !wrong.length
+    return { pass, detail: `versions=${versions.join()} wrong=${wrong.join(' ') || 'none'}` }
+  })
+
+  // Each case ends somewhere else than it starts. Redirects across the sign-in host used to
+  // abort Electron, so reaching the end of the list is itself part of the check.
+  await check('google sign-in sees Firefox, other sites see Chrome, across redirects', async () => {
+    let sent: Record<string, string> = {}
+    ctx.session.webRequest.onSendHeaders({ urls: ['https://accounts.google.com/*'] }, (d) => {
+      if (d.resourceType === 'mainFrame') sent = d.requestHeaders
+    })
+    const visit = async (url: string, endsOnSignIn: boolean) => {
+      sent = {}
+      let navigated = false
+      t1.wc.once('did-navigate', () => (navigated = true))
+      t1.wc.loadURL(url).catch(() => {})
+      await waitFor(() => navigated && isGoogleSignIn(t1.wc.getURL()) === endsOnSignIn && !t1.wc.isLoading()).catch(() => {
+        throw new Error(`${url} stuck at ${t1.wc.getURL()} navigated=${navigated} loading=${t1.wc.isLoading()}`)
+      })
+      const page: string = await t1.wc.executeJavaScript('navigator.userAgent + "|" + navigator.appVersion')
+      return { url: t1.wc.getURL(), page, header: sent['User-Agent'] ?? '', hints: Object.keys(sent).some((k) => /^sec-ch-ua/i.test(k)) }
+    }
+    try {
+      const cases = [
+        { name: 'direct', ...(await visit('https://accounts.google.com/ServiceLogin?hl=en', true)) },
+        { name: 'redirect in', ...(await visit('https://www.google.com/accounts/ServiceLogin?hl=en', true)) },
+        { name: 'redirect out', ...(await visit('https://accounts.google.com/Logout?continue=https://www.google.com/&hl=en', false)) },
+        { name: 'elsewhere', ...(await visit('https://example.com/', false)) },
+      ]
+      const wrong = cases.filter((c) => {
+        const firefox = isGoogleSignIn(c.url)
+        if (firefox) return !/Firefox\/.*\|5\.0 \(Macintosh/.test(c.page) || !/Firefox\//.test(c.header) || c.hints
+        return /Firefox/.test(c.page) || !/Chrome\//.test(c.page)
+      })
+      return { pass: !wrong.length, detail: cases.map((c) => `${c.name}: ${new URL(c.url).hostname} ${/Firefox/.test(c.page) ? 'firefox' : 'chrome'}`).join(' | ') }
+    } finally {
+      ctx.session.webRequest.onSendHeaders(null)
+    }
   })
 
   await check('url resolution cases', async () => {

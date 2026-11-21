@@ -112,6 +112,9 @@ It doesn't need to be. On first launch, Stage copies Electron's Chromium app on 
 **Where are my logins and tabs kept?**
 In `~/Library/Application Support/Stage`. npx, a global install and a clone all share it, so you sign in once. Stage reopens your last tabs when it starts, and logs errors to `stage.log` in the same folder instead of interrupting you with a dialog.
 
+**Can I sign in to Google?**
+Yes. Google blocks sign-in from browsers built on Electron, so on `accounts.google.com`, and only there, Stage tells Google it is Firefox, which Google accepts. Gmail, YouTube and every other site see Stage's normal Chrome user agent.
+
 **Does every extension work?**
 Most do. Extensions that talk to a desktop app, such as 1Password's desktop unlock, can't connect, because Electron doesn't support Chrome's native messaging. Sign in inside the extension instead.
 

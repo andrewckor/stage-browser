@@ -7,6 +7,7 @@ import { channel, type Overlay, type StageState, type TabLayout } from '../share
 import { parseArgs, type LaunchArgs } from './cli-args'
 import type { BarFlags, Ctx } from './context'
 import { actionCount, createExtensions, setupExtensionStore } from './extensions'
+import { setupGoogleSignIn } from './google-sign-in'
 import { setupIpc } from './ipc'
 import { buildMenu } from './menu'
 import { Reveal } from './reveal'
@@ -252,6 +253,7 @@ let stage: Stage | undefined
 async function boot(): Promise<void> {
   const session = sessions.fromPartition('persist:stage')
   session.setUserAgent(cleanUA(session.getUserAgent()))
+  setupGoogleSignIn(session)
   setupDownloads(session)
 
   const args: LaunchArgs = SELFTEST ? { urls: [], size: null, pin: false, fresh: true } : parseArgs(process.argv, APP_ROOT)
