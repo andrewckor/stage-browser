@@ -4,3 +4,4 @@ build/icon-options/
 .DS_Store
 *.log
 selftest-out/
+release/

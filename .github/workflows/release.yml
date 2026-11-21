@@ -1,0 +1,127 @@
+# Publishes stage-browser when the version in package.json changes on main.
+#
+# The gate is the tag, not the diff: a run is a no-op unless v<version> is
+# missing, so a re-run after a half-finished release picks up where it stopped
+# instead of trying to publish a version npm already has.
+
+name: Release
+
+on:
+  push:
+    branches: [main]
+    paths: ["package.json"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  id-token: write # OIDC: npm trusted publishing, no token
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      ELECTRON_SKIP_BINARY_DOWNLOAD: 1
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0 # needs the tags to know what has shipped
+
+      - name: Decide whether there is anything to release
+        id: check
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+          semver="${version%%+*}"
+          prerelease="${semver#*-}"
+          if [ "$prerelease" = "$semver" ]; then
+            echo "npm_tag=latest" >> "$GITHUB_OUTPUT"
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "npm_tag=${prerelease%%.*}" >> "$GITHUB_OUTPUT"
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          fi
+
+          if git rev-parse -q --verify "refs/tags/v$version" >/dev/null; then
+            echo "v$version is already tagged, nothing to do"
+            echo "release=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "v$version is new"
+            echo "release=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/setup-node@v5
+        if: steps.check.outputs.release == 'true'
+        with:
+          # 24 for its bundled npm 11: trusted publishing needs >= 11.5.1.
+          node-version: 24
+          cache: npm
+          registry-url: https://registry.npmjs.org
+
+      - name: Install
+        if: steps.check.outputs.release == 'true'
+        run: npm ci
+
+      # A broken bump must fail here, before anything irreversible.
+      - name: Typecheck and lint
+        if: steps.check.outputs.release == 'true'
+        run: npm run typecheck && npm run lint
+
+      # npm pack runs `prepare`, which builds dist/.
+      - name: Build the tarball
+        if: steps.check.outputs.release == 'true'
+        run: mkdir -p release && npm pack --pack-destination release
+
+      # Publishing is the one step that cannot be undone, so it runs before the
+      # tag. Skipped when the version is already on npm, so a re-run is safe.
+      - name: Publish to npm
+        if: steps.check.outputs.release == 'true'
+        env:
+          NPM_TAG: ${{ steps.check.outputs.npm_tag }}
+          VERSION: ${{ steps.check.outputs.version }}
+        run: |
+          if npm view "stage-browser@$VERSION" version >/dev/null 2>&1; then
+            echo "stage-browser@$VERSION is already on npm, skipping publish"
+          else
+            npm publish "./release/stage-browser-$VERSION.tgz" --tag "$NPM_TAG"
+          fi
+
+      - name: Tag and release
+        if: steps.check.outputs.release == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TAG: ${{ steps.check.outputs.npm_tag }}
+          PRERELEASE: ${{ steps.check.outputs.prerelease }}
+          VERSION: ${{ steps.check.outputs.version }}
+        run: |
+          git tag "v$VERSION"
+          git push origin "v$VERSION"
+
+          previous="$(git describe --tags --abbrev=0 "v$VERSION^" 2>/dev/null || true)"
+          if [ -n "$previous" ]; then
+            range="$previous..v$VERSION"
+          else
+            range="v$VERSION"
+          fi
+
+          {
+            git log --no-merges --pretty='- %s' "$range"
+            echo
+            echo "Run: \`npx stage-browser@$NPM_TAG\`"
+            echo "Install: \`npm i -g stage-browser@$VERSION\`"
+          } > notes.md
+
+          release_flags=()
+          if [ "$PRERELEASE" = "true" ]; then
+            release_flags+=(--prerelease)
+          fi
+
+          gh release create "v$VERSION" \
+            "${release_flags[@]}" \
+            --title "v$VERSION" \
+            --notes-file notes.md \
+            "./release/stage-browser-$VERSION.tgz#stage-browser-$VERSION.tgz"
