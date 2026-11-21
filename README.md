@@ -53,7 +53,7 @@ Each address becomes a tab. `--size` fixes the window at 16:9, so nothing reflow
 ## Small on purpose.
 
 - **Hidden tabs.** The tab capsule floats over the page and hides when you're done with it. <kbd>⇧⌘B</kbd> pins it open.
-- **Extensions.** Add the ones you use from the Chrome Web Store. Their icons sit in the tab bar.
+- **Extensions.** Add the ones you use from the Chrome Web Store, with **Extensions → Add Extension from This Page**. Their icons sit in the tab bar.
 - **Terminal start.** `stage <url>` opens the page and hands your prompt back. Run it again and the page joins the open window. No app bundle to sign.
 - **Share sizes.** Window presets at 1280×720, 1440×900, 1600×900 and 1920×1080. Zoom with <kbd>⌘=</kbd> and <kbd>⌘-</kbd> so the back row can read.
 - **Escape hatch.** <kbd>⇧⌘O</kbd> opens the current page in Google Chrome. Zoom and Slack links open in their own apps.
@@ -92,7 +92,11 @@ In the tab bar, click the active tab to edit its address, middle-click a tab to 
 
 ## Extensions
 
-Stage starts with none. Choose **Extensions → Open Chrome Web Store**, find the extension and click **Add to Chrome**. Its icon appears on the right of the tab bar, and the **Extensions** menu lists everything installed, each with a Remove option. **Hide Icons in Tab Bar** keeps the capsule bare.
+Stage starts with none. Choose **Extensions → Open Chrome Web Store** and go to the extension's page. Then choose **Extensions → Add Extension from This Page**. Stage shows what the extension can access and asks before adding it. The Web Store's own **Add to Chrome** button doesn't work in Stage, so use the menu item instead.
+
+Packages are checked against Google's signature, the same way Chrome checks them. Updates are automatic, and Stage asks again if an update wants more access.
+
+Its icon appears on the right of the tab bar, and the **Extensions** menu lists everything installed, each with a Remove option. **Hide Icons in Tab Bar** keeps the capsule bare.
 
 Extension support comes from [electron-chrome-extensions](https://github.com/samuelmaddock/electron-browser-shell/tree/master/packages/electron-chrome-extensions), which covers most of the `chrome.*` APIs extensions rely on, but not every one. If an extension misbehaves, <kbd>⇧⌘O</kbd> opens the page in Google Chrome.
 

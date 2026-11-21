@@ -1,10 +1,8 @@
-import type { BrowserWindow, Extension, Session } from 'electron'
+import { app, dialog, type BrowserWindow, type Extension, type Session } from 'electron'
 import { ElectronChromeExtensions } from 'electron-chrome-extensions'
-import { installChromeWebStore, installExtension, uninstallExtension } from 'electron-chrome-web-store'
 import { join } from 'node:path'
 import type { Ctx } from './context'
-
-export const WEB_STORE_URL = 'https://chromewebstore.google.com/'
+import { loadInstalled, startUpdates, type Confirm } from './web-store'
 
 export interface InstalledExtension {
   id: string
@@ -56,7 +54,23 @@ export function createExtensions(ctx: Ctx): ElectronChromeExtensions {
   return ext
 }
 
-export async function setupWebStore(ctx: Ctx): Promise<void> {
+/** Asks the user, in a sheet over the page window, before an extension is added or given more access. */
+export function confirmFor(ctx: Ctx): Confirm {
+  return async (req) => {
+    const detail = req.access.length ? `It can access:\n${req.access.map((a) => `• ${a}`).join('\n')}` : 'It asks for no special permissions.'
+    const { response } = await dialog.showMessageBox(ctx.win, {
+      type: 'question',
+      message: req.update ? `“${req.name}” ${req.version} wants more access` : `Add “${req.name}”?`,
+      detail,
+      buttons: req.update ? ['Allow', 'Not Now'] : ['Add Extension', 'Cancel'],
+      defaultId: 0,
+      cancelId: 1,
+    })
+    return response === 0
+  }
+}
+
+export async function setupExtensionStore(ctx: Ctx): Promise<void> {
   const refresh = () => {
     if (ctx.quitting) return
     ctx.rebuildMenu()
@@ -64,7 +78,8 @@ export async function setupWebStore(ctx: Ctx): Promise<void> {
   }
   ctx.session.extensions.on('extension-loaded', refresh)
   ctx.session.extensions.on('extension-unloaded', refresh)
-  await installChromeWebStore({ session: ctx.session })
+  await loadInstalled(ctx.session)
+  app.once('before-quit', startUpdates(ctx.session, confirmFor(ctx)))
 }
 
 const all = (session: Session): Extension[] => session.extensions.getAllExtensions()
@@ -78,12 +93,4 @@ export function actionCount(session: Session): number {
     const m = e.manifest as Manifest
     return Boolean(m?.action || m?.browser_action)
   }).length
-}
-
-export function install(session: Session, id: string): Promise<Extension> {
-  return installExtension(id, { session })
-}
-
-export function remove(session: Session, id: string): Promise<void> {
-  return uninstallExtension(id, { session })
 }

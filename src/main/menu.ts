@@ -1,7 +1,8 @@
-import { Menu, type MenuItemConstructorOptions, type WebContents } from 'electron'
+import { Menu, dialog, type MenuItemConstructorOptions, type WebContents } from 'electron'
 import { execFile } from 'node:child_process'
 import type { Ctx } from './context'
-import { WEB_STORE_URL, installed, remove } from './extensions'
+import { confirmFor, installed } from './extensions'
+import { WEB_STORE_URL, install, remove, webStoreId } from './web-store'
 
 const SIZES: readonly (readonly [number, number])[] = [
   [1280, 720],
@@ -21,6 +22,28 @@ export function buildMenu(ctx: Ctx): Menu {
   const openInChrome = () => {
     const url = tabs.active?.url
     if (url) execFile('open', ['-a', 'Google Chrome', url], () => {})
+  }
+
+  const openStore = () => void tabs.create({ url: WEB_STORE_URL, index: tabs.insertIndexAfterActive() })
+  const addFromPage = async () => {
+    const id = webStoreId(tabs.active?.url)
+    if (!id) {
+      const { response } = await dialog.showMessageBox(win, {
+        type: 'info',
+        message: 'Open an extension’s page in the Chrome Web Store, then choose this again.',
+        buttons: ['Open Chrome Web Store', 'OK'],
+        defaultId: 1,
+        cancelId: 1,
+      })
+      if (response === 0) openStore()
+      return
+    }
+    try {
+      await install(ctx.session, id, confirmFor(ctx))
+      ctx.rebuildMenu()
+    } catch (err) {
+      await dialog.showMessageBox(win, { type: 'warning', message: 'Couldn’t add the extension', detail: (err as Error).message })
+    }
   }
 
   const extItems = installed(ctx.session).map<MenuItemConstructorOptions>((e) => ({
@@ -129,7 +152,8 @@ export function buildMenu(ctx: Ctx): Menu {
     {
       label: 'Extensions',
       submenu: [
-        { label: 'Open Chrome Web Store', click: () => void tabs.create({ url: WEB_STORE_URL, index: tabs.insertIndexAfterActive() }) },
+        { label: 'Open Chrome Web Store', click: openStore },
+        { label: 'Add Extension from This Page', click: () => void addFromPage() },
         { label: 'Hide Icons in Tab Bar', type: 'checkbox', checked: ctx.prefs.hideExtensionIcons, click: (item) => ctx.setHideExtensionIcons(item.checked) },
         { type: 'separator' },
         ...(extItems.length ? extItems : [{ label: 'No extensions installed', enabled: false }]),

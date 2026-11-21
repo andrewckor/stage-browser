@@ -17,8 +17,7 @@
   },
   "dependencies": {
     "electron": "^45.4.1",
-    "electron-chrome-extensions": "^4.10.0",
-    "electron-chrome-web-store": "^0.13.0"
+    "electron-chrome-extensions": "^4.10.0"
   },
   "bin": {
     "stage": "dist/bin/stage.js"
@@ -56,11 +55,5 @@
     "@types/node": "^26.6.6",
     "oxlint": "^1.94.0",
     "typescript": "^7.0.2"
-  },
-  "overrides": {
-    "adm-zip": "^0.6.1"
-  },
-  "bundleDependencies": [
-    "electron-chrome-web-store"
-  ]
+  }
 }

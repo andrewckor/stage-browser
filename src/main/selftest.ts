@@ -1,15 +1,19 @@
 // Scripted self-test: `npm run selftest`. No human input. Writes results.json and PNGs, exits 0 or 1.
 import { app, BaseWindow, BrowserWindow, Menu, shell, type NativeImage, type Rectangle, type Size } from 'electron'
-import { mkdirSync, mkdtempSync, writeFileSync, existsSync } from 'node:fs'
+import { createHash, generateKeyPairSync, sign } from 'node:crypto'
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
+import { crc32 } from 'node:zlib'
 import { parseArgs } from './cli-args'
 import type { Ctx } from './context'
-import { install, installed, type ActionPopup } from './extensions'
+import { idFromPublicKey, unzip, verifyCrx } from './crx'
+import { installed, type ActionPopup } from './extensions'
 import { readPrefs } from './store'
 import { suggest } from './suggest'
 import { NEWTAB_FILE, type Tab } from './tabs'
 import { resolveInput } from './url'
+import { extensionsDir, install, installCrx, remove, webStoreId } from './web-store'
 
 interface Outcome {
   pass: boolean
@@ -73,6 +77,97 @@ function writeExtension(prefix: string, manifest: object, files: Record<string, 
   writeFileSync(join(dir, 'manifest.json'), JSON.stringify(manifest))
   for (const [name, body] of Object.entries(files)) writeFileSync(join(dir, name), body)
   return dir
+}
+
+// --- Synthetic extension packages, for the installer checks. ---
+
+interface ZipEntry {
+  name: string
+  data: string | Buffer
+  /** Unix mode in the external attributes, e.g. 0o120777 for a symlink. */
+  mode?: number
+}
+
+function makeZip(entries: readonly ZipEntry[]): Buffer {
+  const locals: Buffer[] = []
+  const central: Buffer[] = []
+  let offset = 0
+  for (const e of entries) {
+    const name = Buffer.from(e.name)
+    const data = Buffer.from(e.data)
+    const local = Buffer.alloc(30)
+    local.writeUInt32LE(0x04034b50, 0)
+    local.writeUInt16LE(20, 4)
+    local.writeUInt32LE(crc32(data), 14)
+    local.writeUInt32LE(data.length, 18)
+    local.writeUInt32LE(data.length, 22)
+    local.writeUInt16LE(name.length, 26)
+    const dir = Buffer.alloc(46)
+    dir.writeUInt32LE(0x02014b50, 0)
+    dir.writeUInt16LE(0x031e, 4)
+    dir.writeUInt16LE(20, 6)
+    dir.writeUInt32LE(crc32(data), 16)
+    dir.writeUInt32LE(data.length, 20)
+    dir.writeUInt32LE(data.length, 24)
+    dir.writeUInt16LE(name.length, 28)
+    dir.writeUInt32LE(((e.mode ?? 0o100644) << 16) >>> 0, 38)
+    dir.writeUInt32LE(offset, 42)
+    locals.push(local, name, data)
+    central.push(dir, name)
+    offset += local.length + name.length + data.length
+  }
+  const cd = Buffer.concat(central)
+  const end = Buffer.alloc(22)
+  end.writeUInt32LE(0x06054b50, 0)
+  end.writeUInt16LE(entries.length, 8)
+  end.writeUInt16LE(entries.length, 10)
+  end.writeUInt32LE(cd.length, 12)
+  end.writeUInt32LE(offset, 16)
+  return Buffer.concat([...locals, cd, end])
+}
+
+const varint = (value: number): Buffer => {
+  const out: number[] = []
+  for (let n = value; ; n = Math.floor(n / 128)) {
+    out.push(n >= 128 ? (n % 128) | 0x80 : n)
+    if (n < 128) break
+  }
+  return Buffer.from(out)
+}
+
+// A length-delimited protobuf field.
+const field = (num: number, bytes: Buffer): Buffer => Buffer.concat([varint(num * 8 + 2), varint(bytes.length), bytes])
+
+function newKey() {
+  const { publicKey, privateKey } = generateKeyPairSync('rsa', { modulusLength: 2048 })
+  const spki = publicKey.export({ type: 'spki', format: 'der' })
+  return { privateKey, spki, id: idFromPublicKey(spki) }
+}
+
+/** A CRX3 whose signed ID is `idKey`'s and whose proofs are made by `signers` (default: `idKey` alone). */
+function makeCrx(zip: Buffer, idKey: ReturnType<typeof newKey>, signers = [idKey]): Buffer {
+  const crxId = createHash('sha256').update(idKey.spki).digest().subarray(0, 16)
+  const signedData = field(1, crxId)
+  const length = Buffer.alloc(4)
+  length.writeUInt32LE(signedData.length)
+  const message = Buffer.concat([Buffer.from('CRX3 SignedData\x00', 'latin1'), length, signedData, zip])
+  const proofs = signers.map((k) => field(2, Buffer.concat([field(1, k.spki), field(2, sign('sha256', message, k.privateKey))])))
+  const header = Buffer.concat([...proofs, field(10000, signedData)])
+  const head = Buffer.alloc(12)
+  head.write('Cr24', 0, 'latin1')
+  head.writeUInt32LE(3, 4)
+  head.writeUInt32LE(header.length, 8)
+  return Buffer.concat([head, header, zip])
+}
+
+const MANIFEST = JSON.stringify({ manifest_version: 3, name: 'Stage test ext', version: '1.0' })
+const throws = (fn: () => unknown): boolean => {
+  try {
+    fn()
+    return false
+  } catch {
+    return true
+  }
 }
 
 const loaded = (t: Tab) => !t.loading && !!t.url && !!t.title
@@ -467,6 +562,73 @@ export async function run(ctx: Ctx): Promise<void> {
 
   // Opt-in compatibility suite against a real extension from the Web Store. The app itself
   // installs nothing. STAGE_SELFTEST_EXT_ID=<web store id> targets any other extension.
+  const goodZip = makeZip([{ name: 'manifest.json', data: MANIFEST }])
+  const key = newKey()
+  const goodCrx = makeCrx(goodZip, key)
+  const versionDirs = (id: string): string[] => (existsSync(join(extensionsDir(), id)) ? readdirSync(join(extensionsDir(), id)).filter((n) => n.endsWith('_0')) : [])
+
+  await check('installer: a signed package installs with its key, loads under its ID, and removes cleanly', async () => {
+    const ext = await installCrx(ctx.session, key.id, goodCrx, async () => true)
+    const manifestPath = join(extensionsDir(), key.id, '1.0_0', 'manifest.json')
+    const stored = existsSync(manifestPath) ? (JSON.parse(readFileSync(manifestPath, 'utf8')) as { key?: string }) : {}
+    const r = { loadedId: ext?.id === key.id, keyStored: stored.key === key.spki.toString('base64'), listed: installed(ctx.session).some((e) => e.id === key.id) }
+    await remove(ctx.session, key.id)
+    const gone = !ctx.session.extensions.getExtension(key.id) && !existsSync(join(extensionsDir(), key.id))
+    return { pass: Object.values(r).every(Boolean) && gone, detail: JSON.stringify({ ...r, gone }) }
+  })
+
+  await check('installer: one flipped byte in the archive is rejected', async () => {
+    const bad = Buffer.from(goodCrx)
+    bad.writeUInt8(bad.readUInt8(bad.length - 60) ^ 0xff, bad.length - 60)
+    return { pass: throws(() => verifyCrx(bad, key.id)) }
+  })
+
+  await check('installer: a package checked against a different extension ID is rejected', async () => {
+    return { pass: throws(() => verifyCrx(goodCrx, newKey().id)) && !throws(() => verifyCrx(goodCrx, key.id)) }
+  })
+
+  await check('installer: a signature from a key that is not the extension’s own is rejected', async () => {
+    const other = newKey()
+    const crx = makeCrx(goodZip, key, [other])
+    return { pass: throws(() => verifyCrx(crx, key.id)) }
+  })
+
+  await check('installer: archive paths that climb out of the folder are rejected, and nothing is written', async () => {
+    const parent = mkdtempSync(join(tmpdir(), 'stage-unzip-'))
+    const dest = join(parent, 'dest')
+    mkdirSync(dest)
+    const rejected = throws(() => unzip(makeZip([{ name: 'manifest.json', data: MANIFEST }, { name: '../evil.txt', data: 'x' }]), dest))
+    const clean = readdirSync(dest).length === 0 && !existsSync(join(parent, 'evil.txt'))
+    rmSync(parent, { recursive: true, force: true })
+    return { pass: rejected && clean, detail: JSON.stringify({ rejected, clean }) }
+  })
+
+  await check('installer: a symlink in the archive is rejected', async () => {
+    const dest = mkdtempSync(join(tmpdir(), 'stage-unzip-'))
+    const rejected = throws(() => unzip(makeZip([{ name: 'manifest.json', data: MANIFEST }, { name: 'link', data: '/etc', mode: 0o120777 }]), dest))
+    const clean = readdirSync(dest).length === 0
+    rmSync(dest, { recursive: true, force: true })
+    return { pass: rejected && clean, detail: JSON.stringify({ rejected, clean }) }
+  })
+
+  await check('installer: declining the prompt installs nothing', async () => {
+    const k = newKey()
+    let asked = 0
+    const ext = await installCrx(ctx.session, k.id, makeCrx(goodZip, k), async () => {
+      asked++
+      return false
+    })
+    const r = { asked, resolvedNull: ext === null, noVersionDir: versionDirs(k.id).length === 0, notLoaded: !ctx.session.extensions.getExtension(k.id) }
+    rmSync(join(extensionsDir(), k.id), { recursive: true, force: true })
+    return { pass: r.asked === 1 && r.resolvedNull && r.noVersionDir && r.notLoaded, detail: JSON.stringify(r) }
+  })
+
+  await check('installer: Web Store listing URLs give their ID, other sites give none', async () => {
+    const id = 'abcdefghijklmnopabcdefghijklmnop'
+    const r = [webStoreId(`https://chromewebstore.google.com/detail/some-name/${id}`) === id, webStoreId(`https://example.com/detail/${id}`) === null, webStoreId(undefined) === null]
+    return { pass: r.every(Boolean), detail: JSON.stringify(r) }
+  })
+
   if (process.env.STAGE_SELFTEST_OKTA || process.env.STAGE_SELFTEST_EXT_ID) {
     const extId = process.env.STAGE_SELFTEST_EXT_ID || OKTA_ID
     // Console output from every extension page and service worker, recorded from before the
@@ -484,7 +646,7 @@ export async function run(ctx: Ctx): Promise<void> {
     const heard = (marker: string) => diag.swConsole.filter((l) => l.includes(marker)).length
 
     await check(`extension ${extId} installs from the Web Store`, async () => {
-      await install(ctx.session, extId)
+      await install(ctx.session, extId, async () => true)
       const list = installed(ctx.session)
       return { pass: list.some((e) => e.id === extId), detail: JSON.stringify(list) }
     })

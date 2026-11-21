@@ -6,7 +6,7 @@ import { basename, extname, join, resolve } from 'node:path'
 import { channel, type Overlay, type StageState } from '../shared/contract'
 import { parseArgs, type LaunchArgs } from './cli-args'
 import type { BarFlags, Ctx } from './context'
-import { actionCount, createExtensions, setupWebStore } from './extensions'
+import { actionCount, createExtensions, setupExtensionStore } from './extensions'
 import { setupIpc } from './ipc'
 import { buildMenu } from './menu'
 import { Reveal } from './reveal'
@@ -21,7 +21,7 @@ const APP_ROOT = resolve(__dirname, '..', '..')
 const SELFTEST = !!process.env.STAGE_SELFTEST
 const PUSH_MS = 16
 const SAVE_MS = 500
-const WEB_STORE_TIMEOUT_MS = 5000
+const EXTENSIONS_TIMEOUT_MS = 5000
 const ERROR_LOG_MAX_BYTES = 1_000_000
 
 app.setName('Stage')
@@ -254,8 +254,8 @@ async function boot(): Promise<void> {
   stage = s
 
   // Load installed extensions before the first page so content scripts attach to it.
-  const timeout = new Promise<void>((r) => setTimeout(r, WEB_STORE_TIMEOUT_MS))
-  await Promise.race([setupWebStore(s).catch((e: Error) => console.error('[stage] web store setup failed', e.message)), timeout])
+  const timeout = new Promise<void>((r) => setTimeout(r, EXTENSIONS_TIMEOUT_MS))
+  await Promise.race([setupExtensionStore(s).catch((e: Error) => console.error('[stage] extension setup failed', e.message)), timeout])
   s.rebuildMenu()
 
   s.win.show()
