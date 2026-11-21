@@ -10,7 +10,6 @@ import { actionCount, createExtensions, setupExtensionStore } from './extensions
 import { setupIpc } from './ipc'
 import { buildMenu } from './menu'
 import { Reveal } from './reveal'
-import { run as runSelftest } from './selftest'
 import { flushHistory, readPrefs, readSession, writePrefs, writeSession, type SavedSession } from './store'
 import { Tabs } from './tabs'
 import { UiWindow } from './ui-window'
@@ -265,7 +264,8 @@ async function boot(): Promise<void> {
     s.rebuildMenu()
   }
 
-  if (SELFTEST) return void runSelftest(s)
+  // Loaded only here: the selftest is left out of the published package.
+  if (SELFTEST) return void (require('./selftest') as typeof import('./selftest')).run(s)
   s.restore(saved, args)
   log('ready tabs=' + s.tabs.list.length)
 }

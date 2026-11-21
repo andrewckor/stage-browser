@@ -5,7 +5,7 @@
   "description": "A minimal Chromium browser for screen sharing: the page fills the window, tabs hide until you reach for them.",
   "main": "dist/main/main.js",
   "scripts": {
-    "build": "rm -rf dist && tsc && cp src/ui/*.html src/ui/*.css dist/ui/ && chmod +x dist/bin/stage.js",
+    "build": "rm -rf dist && tsc && cp src/ui/*.html src/ui/*.css dist/ui/ && node scripts/write-runtime.mjs && chmod +x dist/bin/stage.js",
     "typecheck": "tsc --noEmit && tsc -p scripts",
     "prepare": "npm run build",
     "start": "npm run build && electron .",
@@ -16,7 +16,6 @@
     "lint:fix": "oxlint --fix"
   },
   "dependencies": {
-    "electron": "^45.4.1",
     "electron-chrome-extensions": "^4.10.0"
   },
   "bin": {
@@ -24,6 +23,8 @@
   },
   "files": [
     "dist/",
+    "!dist/main/selftest.js",
+    "!dist/ui/mock.js",
     "build/icon.png",
     "build/icon.icns",
     "README.md"
@@ -53,6 +54,7 @@
   },
   "devDependencies": {
     "@types/node": "^26.6.6",
+    "electron": "^45.4.1",
     "oxlint": "^1.94.0",
     "typescript": "^7.0.2"
   }

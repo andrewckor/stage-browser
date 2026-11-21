@@ -34,7 +34,7 @@ npx stage-browser https://example.com    # run it now
 npm i -g stage-browser                   # or keep the short `stage` command
 ```
 
-Needs macOS and Node 18 or later. The first run downloads Stage and its Chromium, about 100 MB.
+Needs macOS and Node 22 or later. The first launch downloads the Chromium runtime once (about 120 MB) and checks it against a pinned SHA-256.
 
 ## Run of show.
 
