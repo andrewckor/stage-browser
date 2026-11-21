@@ -1,7 +1,7 @@
 {
   "name": "stage-browser",
   "productName": "Stage",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "A minimal Chromium browser for demos, workshops and webinars: edge to edge page, hidden tabs.",
   "main": "dist/main/main.js",
   "scripts": {
