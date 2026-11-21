@@ -5,7 +5,23 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Stage Browser</title>
 <meta name="description" content="Stage is a minimal Chromium browser for screen sharing. The page fills the window and the tabs stay hidden until you reach for them.">
+<link rel="canonical" href="https://stagebrowser.com/">
 <link rel="icon" href="icon.png">
+<link rel="apple-touch-icon" href="icon.png">
+<meta name="theme-color" content="#f2f2ee">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Stage Browser">
+<meta property="og:url" content="https://stagebrowser.com/">
+<meta property="og:title" content="Stage: nothing but the page">
+<meta property="og:description" content="A minimal Chromium browser for screen sharing. Share the window and your audience sees the site, edge to edge. Your tabs stay off camera.">
+<meta property="og:image" content="https://stagebrowser.com/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Stage: nothing but the page. A minimal browser for screen sharing. npx stage-browser">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Stage: nothing but the page">
+<meta name="twitter:description" content="A minimal Chromium browser for screen sharing. Your tabs stay off camera.">
+<meta name="twitter:image" content="https://stagebrowser.com/og.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=JetBrains+Mono:wght@400;500&family=Silkscreen&display=swap">
@@ -69,9 +85,15 @@ p { margin: 0; }
   text-transform: uppercase; line-height: .86; letter-spacing: -.025em; margin: 0; text-wrap: balance;
 }
 .pop { color: var(--pop); }
-.tuck { margin-left: .06em; } /* clears a period from an overhanging letter (the W in "show.") */
+.tuck { margin-left: .06em; } /* clears a period from an overhanging letter */
+.dot.tuck { margin-left: -.03em; } /* pulls the dot in toward the W's slanted side, as the font kerns "W." */
+/* Full stops in display headings: round, like the record dot below. */
+.dot { display: inline-block; width: .19em; height: .19em; margin-left: .05em; border-radius: 50%; background: currentColor; vertical-align: baseline; overflow: hidden; text-indent: 1em; white-space: nowrap; } /* the full stop stays in the text, clipped */
 /* The record dot: the icon's red, used on the footer wordmark. */
-.rec { display: inline-block; width: .19em; height: .19em; margin-left: .05em; border-radius: 50%; background: var(--pop); vertical-align: baseline; }
+/* Raised .026em so its centre lines up with the centre of the E's thick bottom stroke. */
+.rec { display: inline-block; width: .19em; height: .19em; margin-left: .05em; border-radius: 50%; background: var(--pop); vertical-align: .026em; animation: rec 1.2s infinite; }
+/* Blinks about once a second, like a camera's REC light: red for most of the cycle, a quick drop to ink, straight back to red. */
+@keyframes rec { 0%, 52% { background: var(--pop); } 60%, 90% { background: var(--ink); } 96%, 100% { background: var(--pop); } }
 /* One-bit dithering, as in the icon: a checkerboard of square pixels. */
 :root { --dither: repeating-conic-gradient(var(--ink) 0 25%, transparent 0 50%); }
 
@@ -289,7 +311,7 @@ footer { padding-block: clamp(96px, 12vw, 160px) 32px; overflow: hidden; }
 
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
-  .window .tabline { animation: none; }
+  .window .tabline, .rec { animation: none; }
   .capsule, .window.revealed .capsule, .viewport, .lights, .shot { transition: none; }
 }
 </style>
@@ -309,7 +331,7 @@ footer { padding-block: clamp(96px, 12vw, 160px) 32px; overflow: hidden; }
 
   <main id="top">
     <section class="hero" aria-labelledby="hero-title">
-      <h1 id="hero-title" class="display"><span>Nothing but</span><span>the <span class="pop" style="display:inline">page.</span></span></h1>
+      <h1 id="hero-title" class="display"><span>Nothing but</span><span>the <span class="pop" style="display:inline">page<span class="dot">.</span></span></span></h1>
       <div class="hero-row">
         <p class="lede">Stage is a minimal Chromium browser for workshops, webinars and demos. <strong>Share the window and your audience sees the site, edge to edge.</strong> Your tabs wait behind the top edge until you reach for them.</p>
         <div class="cmd-wrap">
@@ -355,7 +377,7 @@ footer { padding-block: clamp(96px, 12vw, 160px) 32px; overflow: hidden; }
     </section>
 
     <section class="section" id="value" aria-labelledby="value-title">
-      <h2 id="value-title" class="display">Same site.<br>Two <span class="pop">windows.</span></h2>
+      <h2 id="value-title" class="display">Same site<span class="dot">.</span><br>Two <span class="pop">windows<span class="dot">.</span></span></h2>
       <div class="versus">
         <div class="vs-col">
           <h3 class="display muted">Your browser</h3>
@@ -396,7 +418,7 @@ footer { padding-block: clamp(96px, 12vw, 160px) 32px; overflow: hidden; }
     </section>
 
     <section class="section" aria-labelledby="wall-title">
-      <h2 id="wall-title" class="display">Any site.<br><span class="pop">Edge to edge.</span></h2>
+      <h2 id="wall-title" class="display">Any site<span class="dot">.</span><br><span class="pop">Edge to edge<span class="dot">.</span></span></h2>
       <div class="wall">
         <figure class="tile">
           <div class="window static" aria-hidden="true">
@@ -429,7 +451,7 @@ footer { padding-block: clamp(96px, 12vw, 160px) 32px; overflow: hidden; }
     </section>
 
     <section class="section" id="run-of-show" aria-labelledby="run-title">
-      <h2 id="run-title" class="display">Run of <span class="pop">show<span class="tuck">.</span></span></h2>
+      <h2 id="run-title" class="display">Run of <span class="pop">show<span class="dot tuck">.</span></span></h2>
       <ol class="cues">
         <li>
           <span class="tag">Before the call</span>
@@ -452,7 +474,7 @@ footer { padding-block: clamp(96px, 12vw, 160px) 32px; overflow: hidden; }
     </section>
 
     <section class="section" id="features" aria-labelledby="features-title">
-      <h2 id="features-title" class="display">Small on <span class="pop">purpose.</span></h2>
+      <h2 id="features-title" class="display">Small on <span class="pop">purpose<span class="dot">.</span></span></h2>
       <div class="rows">
         <div class="row"><h3 class="display">Hidden tabs</h3><p>No toolbar, address bar or bookmarks. The tab capsule slides over the page from the top edge, and <kbd>⇧⌘B</kbd> pins it open.</p></div>
         <div class="row"><h3 class="display">Extensions</h3><p>Add the ones you use from the Chrome Web Store: Extensions → Open Chrome Web Store, then Add to Chrome. Their icons sit in the tab bar.</p></div>
@@ -463,7 +485,7 @@ footer { padding-block: clamp(96px, 12vw, 160px) 32px; overflow: hidden; }
     </section>
 
     <section class="section" id="shortcuts" aria-labelledby="shortcuts-title">
-      <h2 id="shortcuts-title" class="display">Hands on the <span class="pop">keys.</span></h2>
+      <h2 id="shortcuts-title" class="display">Hands on the <span class="pop">keys<span class="dot">.</span></span></h2>
       <div class="keys-grid">
         <div class="key-row"><span class="k"><kbd>⌘T</kbd></span><span>New tab, straight into the address box</span></div>
         <div class="key-row"><span class="k"><kbd>⌘L</kbd></span><span>Go to an address or search</span></div>
@@ -479,7 +501,7 @@ footer { padding-block: clamp(96px, 12vw, 160px) 32px; overflow: hidden; }
     </section>
 
     <section class="section" id="install" aria-labelledby="install-title">
-      <h2 id="install-title" class="display">One <span class="pop">command.</span></h2>
+      <h2 id="install-title" class="display">One <span class="pop">command<span class="dot">.</span></span></h2>
       <p class="lede"><strong>Zero installation.</strong> <code>npx</code> runs Stage straight from npm: nothing to download from a website, drag into Applications or approve in System Settings.</p>
       <div class="installs">
         <div class="install">
@@ -499,7 +521,7 @@ footer { padding-block: clamp(96px, 12vw, 160px) 32px; overflow: hidden; }
     </section>
 
     <section class="section" id="faq" aria-labelledby="faq-title">
-      <h2 id="faq-title" class="display">Before you go <span class="pop">live.</span></h2>
+      <h2 id="faq-title" class="display">Before you go <span class="pop">live<span class="dot">.</span></span></h2>
       <div class="faq">
         <details>
           <summary>Do I have to install anything?</summary>
