@@ -1,27 +1,20 @@
-import { ipcMain, screen, type IpcMainEvent, type IpcMainInvokeEvent } from 'electron'
+import { ipcMain, type IpcMainEvent, type IpcMainInvokeEvent } from 'electron'
 import { channel, type UiCommands, type UiQueries } from '../shared/contract'
 import type { Ctx } from './context'
 import { showTabMenu } from './context-menu'
 import { suggest } from './suggest'
 import { resolveInput } from './url'
+import { windowAction } from './window'
 
 const BUTTONS = ['left', 'middle', 'right'] as const
-const DRAG_TICK_MS = 8
-const DRAG_MAX_MS = 60_000
 
 type Commands = { [K in keyof UiCommands]: (...args: UiCommands[K]) => void }
 type Queries = { [K in keyof UiQueries]: (...args: UiQueries[K]['args']) => UiQueries[K]['result'] }
 
-// Wires the UI view's IPC to the main process. Returns a function that stops a window drag.
-export function setupIpc(ctx: Ctx): () => void {
-  const { tabs, reveal, win } = ctx
-  const fromUI = (e: IpcMainEvent | IpcMainInvokeEvent) => e.sender === ctx.uiView.webContents
-
-  let drag: ReturnType<typeof setInterval> | undefined
-  const endDrag = () => {
-    clearInterval(drag)
-    drag = undefined
-  }
+// Wires the UI window's IPC to the main process.
+export function setupIpc(ctx: Ctx): void {
+  const { tabs, reveal, win, drag } = ctx
+  const fromUI = (e: IpcMainEvent | IpcMainInvokeEvent) => e.sender === ctx.ui.view.webContents
 
   const queries: Queries = {
     getState: () => ctx.getState(),
@@ -48,34 +41,26 @@ export function setupIpc(ctx: Ctx): () => void {
     forward: () => tabs.active?.wc.navigationHistory.goForward(),
     reload: () => tabs.active?.wc.reload(),
     setBarHover: (hovering) => reveal.setHover(hovering),
-    // A click in the transparent band under the floating bar: hide the bar and give it to the page.
+    // A click the UI window caught in the transparent band under the floating bar, before it
+    // started letting the mouse through there: hide the bar and give the click to the page.
     passClick: (x, y, button, clickCount) => {
       const tab = tabs.active
       if (!tab || tab.wc.isDestroyed() || !Number.isFinite(x) || !Number.isFinite(y)) return
       reveal.hideNow()
       const ev = {
         x: Math.round(x),
-        y: Math.round(y - ctx.tabBounds().y),
+        y: Math.round(y),
         button: BUTTONS[button] ?? 'left',
         clickCount: Math.min(3, Math.max(1, clickCount || 1)),
       }
+      win.focus()
       tab.wc.focus()
       tab.wc.sendInputEvent({ type: 'mouseDown', ...ev })
       tab.wc.sendInputEvent({ type: 'mouseUp', ...ev })
     },
-    // Fallback window drag: follow the cursor while the UI holds the mouse down.
-    startWindowDrag: () => {
-      if (drag || win.isFullScreen()) return
-      const p0 = screen.getCursorScreenPoint()
-      const [x0 = 0, y0 = 0] = win.getPosition()
-      const started = Date.now()
-      drag = setInterval(() => {
-        if (Date.now() - started > DRAG_MAX_MS || win.isDestroyed()) return endDrag()
-        const p = screen.getCursorScreenPoint()
-        win.setPosition(x0 + p.x - p0.x, y0 + p.y - p0.y)
-      }, DRAG_TICK_MS)
-    },
-    endWindowDrag: endDrag,
+    startWindowDrag: () => drag.start(),
+    endWindowDrag: () => drag.end(),
+    windowAction: (action) => windowAction(win, action),
   }
 
   for (const name of Object.keys(queries) as (keyof Queries)[]) {
@@ -88,5 +73,4 @@ export function setupIpc(ctx: Ctx): () => void {
       if (fromUI(e)) fn(...args)
     })
   }
-  return endDrag
 }

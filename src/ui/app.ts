@@ -8,6 +8,7 @@
   type OmniboxMode = import('../shared/contract').OmniboxMode
   type OmniboxOverlay = import('../shared/contract').OmniboxOverlay
   type Suggestion = import('../shared/contract').Suggestion
+  type WindowAction = import('../shared/contract').WindowAction
 
   const STRIP_LEFT = 84
   const STRIP_RIGHT = 12
@@ -166,7 +167,11 @@
 
   const boot = (stage: StageApi): void => {
     const root = document.documentElement
+    const strip = byId('strip', HTMLElement)
     const capsule = byId('capsule', HTMLElement)
+    const lights = byId('lights', HTMLElement)
+    const minimizeBtn = byId('light-minimize', HTMLButtonElement)
+    const zoomBtn = byId('light-zoom', HTMLButtonElement)
     const tabsEl = byId('tabs', HTMLElement)
     const controlsEl = byId('controls', HTMLElement)
     const newBtn = byId('new-tab', HTMLButtonElement)
@@ -208,6 +213,9 @@
       root.classList.toggle('bar-pinned', s.bar.pinned)
       root.classList.toggle('hide-ext', s.hideExtensionIcons)
       root.classList.toggle('no-ext', !s.extensionActions)
+      // A full-screen window can't be minimized, and green takes it back out.
+      minimizeBtn.disabled = s.fullscreen
+      zoomBtn.setAttribute('aria-label', s.fullscreen ? 'Exit full screen' : 'Enter full screen')
       renderTabs(s)
     }
 
@@ -644,6 +652,37 @@
       window.addEventListener('pointerup', onDragEnd)
       window.addEventListener('pointercancel', onDragCancel)
     })
+
+    // The strip is the window's title bar: its background drags the window and a double-click
+    // zooms it. Tabs, buttons and extension icons keep their own clicks.
+    const onBarBackground = (e: Event): boolean => e.target instanceof Element && !e.target.closest('#tabs, button, browser-action-list')
+    // The window moves with the cursor, so the button comes up over the strip in this document.
+    const endWindowDrag = (): void => {
+      window.removeEventListener('pointerup', endWindowDrag)
+      window.removeEventListener('pointercancel', endWindowDrag)
+      stage.endWindowDrag()
+    }
+    strip.addEventListener('pointerdown', (e) => {
+      if (e.button !== 0 || !onBarBackground(e)) return
+      stage.startWindowDrag()
+      window.addEventListener('pointerup', endWindowDrag)
+      window.addEventListener('pointercancel', endWindowDrag)
+    })
+    strip.addEventListener('dblclick', (e) => {
+      if (onBarBackground(e)) stage.windowAction('double-click')
+    })
+
+    const lightActions: [string, (e: MouseEvent) => WindowAction][] = [
+      ['light-close', () => 'close'],
+      ['light-minimize', () => 'minimize'],
+      // Option-click zooms instead, as on any Mac window.
+      ['light-zoom', (e) => (e.altKey ? 'zoom' : 'fullscreen')],
+    ]
+    for (const [id, action] of lightActions) byId(id, HTMLButtonElement).addEventListener('click', (e) => stage.windowAction(action(e)))
+    // The UI window never has keyboard focus here, so the Option key is read off the mouse events.
+    const trackAlt = (e: MouseEvent) => lights.classList.toggle('alt', e.altKey)
+    lights.addEventListener('mousemove', trackAlt)
+    lights.addEventListener('mouseenter', trackAlt)
 
     newBtn.addEventListener('click', () => stage.openOmnibox('new'))
     capsule.addEventListener('mouseenter', () => stage.setBarHover(true))

@@ -1,18 +1,15 @@
-import { BaseWindow, WebContentsView, nativeTheme, screen, session, type Rectangle } from 'electron'
-import { join } from 'node:path'
+import { BaseWindow, nativeTheme, screen, systemPreferences, type Rectangle } from 'electron'
+import type { WindowAction } from '../shared/contract'
 import type { Size } from './cli-args'
 
 export const BAR_HEIGHT = 52
-// Transparent room under the floating bar so the capsule's shadow isn't clipped. Clicks in it are
-// passed to the page. Not used when pinned: the page then starts right under the strip.
+// Transparent room under the floating bar so the capsule's shadow isn't clipped. The UI window lets
+// the mouse through to the page there. Not used when pinned: the bar then stays up all the time, so
+// it keeps to the strip.
 const SHADOW_ROOM = 20
-const TRAFFIC_LIGHTS = { x: 20, y: 19 }
+const DRAG_TICK_MS = 8
+const DRAG_MAX_MS = 60_000
 const EMPTY: Rectangle = { x: 0, y: 0, width: 0, height: 0 }
-
-export interface StageWindow {
-  win: BaseWindow
-  uiView: WebContentsView
-}
 
 export function bgColor(): string {
   return nativeTheme.shouldUseDarkColors ? '#1c1c1e' : '#ffffff'
@@ -26,7 +23,8 @@ function initialBounds(saved: Rectangle | undefined): Partial<Rectangle> & Size 
   return onScreen ? saved : { width: saved.width, height: saved.height }
 }
 
-export function createWindow(saved: Rectangle | undefined, size: Size | null): StageWindow {
+// The page window: only tab views live in it, so a single-window share shows nothing else.
+export function createWindow(saved: Rectangle | undefined, size: Size | null): BaseWindow {
   const win = new BaseWindow({
     ...initialBounds(saved),
     useContentSize: size !== null,
@@ -34,39 +32,92 @@ export function createWindow(saved: Rectangle | undefined, size: Size | null): S
     minHeight: 320,
     show: false,
     titleBarStyle: 'hidden',
-    trafficLightPosition: TRAFFIC_LIGHTS,
     backgroundColor: bgColor(),
   })
   if (size) {
     win.setContentSize(size.width, size.height)
     win.center()
   }
+  // The native traffic lights are part of this window, so a window share would show them. The UI
+  // draws its own in the bar instead.
   win.setWindowButtonVisibility(false)
-
-  const uiView = new WebContentsView({
-    webPreferences: {
-      // Non-persistent: it only serves the local UI. Extension icons load over crx://.
-      session: session.fromPartition('stage-ui'),
-      preload: join(__dirname, '..', 'preload', 'ui-preload.js'),
-      contextIsolation: true,
-      sandbox: false,
-      nodeIntegration: false,
-    },
-  })
-  uiView.setBackgroundColor('#00000000')
-  uiView.setVisible(false)
-  win.contentView.addChildView(uiView)
-  return { win, uiView }
+  return win
 }
 
-export function tabBounds(win: BaseWindow, pinned: boolean): Rectangle {
+export function tabBounds(win: BaseWindow): Rectangle {
   if (win.isDestroyed()) return EMPTY
   const [w = 0, h = 0] = win.getContentSize()
-  const top = pinned ? BAR_HEIGHT : 0
-  return { x: 0, y: top, width: w, height: Math.max(0, h - top) }
+  return { x: 0, y: 0, width: w, height: h }
 }
 
+// The UI window's bounds, relative to the page window's content area.
 export function uiBounds(win: BaseWindow, pinned: boolean, overlay: boolean): Rectangle {
   const [w = 0, h = 0] = win.getContentSize()
   return { x: 0, y: 0, width: w, height: overlay ? h : pinned ? BAR_HEIGHT : BAR_HEIGHT + SHADOW_ROOM }
+}
+
+function toggleZoom(win: BaseWindow): void {
+  if (win.isMaximized()) win.unmaximize()
+  else win.maximize()
+}
+
+// What a title bar double-click does, per System Settings → Desktop & Dock.
+function titleBarDoubleClick(win: BaseWindow): void {
+  const pref = systemPreferences.getUserDefault('AppleActionOnDoubleClick', 'string')
+  if (pref === 'None') return
+  if (pref === 'Minimize') win.minimize()
+  else toggleZoom(win)
+}
+
+// The bar's drawn traffic lights and title-bar double-click, with macOS semantics: green toggles
+// full screen, Option-green zooms.
+export function windowAction(win: BaseWindow, action: WindowAction): void {
+  if (win.isDestroyed()) return
+  const full = win.isFullScreen()
+  if (action === 'close') return win.close()
+  if (action === 'fullscreen') return win.setFullScreen(!full)
+  if (full) return // minimize and zoom don't apply to a full-screen window
+  if (action === 'minimize') win.minimize()
+  else if (action === 'zoom') toggleZoom(win)
+  else if (action === 'double-click') titleBarDoubleClick(win)
+}
+
+// Moves the page window with the cursor while the bar holds the mouse down. The bar lives in a
+// child window, so -webkit-app-region would drag only the child; macOS then moves the child along
+// with its parent, so the bar can't lag behind.
+export class WindowDrag {
+  private readonly win: BaseWindow
+  private timer: ReturnType<typeof setInterval> | undefined
+
+  constructor(win: BaseWindow) {
+    this.win = win
+  }
+
+  get active(): boolean {
+    return this.timer !== undefined
+  }
+
+  start(): void {
+    const { win } = this
+    if (this.timer || win.isDestroyed() || win.isFullScreen()) return
+    const p0 = screen.getCursorScreenPoint()
+    const [x0 = 0, y0 = 0] = win.getPosition()
+    const started = Date.now()
+    let last = `${x0},${y0}`
+    // A lost mouse-up can't leave the window stuck to the cursor for more than DRAG_MAX_MS.
+    this.timer = setInterval(() => {
+      if (Date.now() - started > DRAG_MAX_MS || win.isDestroyed()) return this.end()
+      const p = screen.getCursorScreenPoint()
+      const x = x0 + p.x - p0.x
+      const y = y0 + p.y - p0.y
+      if (`${x},${y}` === last) return
+      last = `${x},${y}`
+      win.setPosition(x, y)
+    }, DRAG_TICK_MS)
+  }
+
+  end(): void {
+    clearInterval(this.timer)
+    this.timer = undefined
+  }
 }

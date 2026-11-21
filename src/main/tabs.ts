@@ -74,7 +74,7 @@ export class Tabs {
     const wc = view.webContents
     const tab: Tab = { id: wc.id, view, wc, title: '', url: '', favicon: null, loading: false, audible: false, muted: false, newTab: false }
     this.list.splice(opts.index ?? this.list.length, 0, tab)
-    ctx.win.contentView.addChildView(view, 0) // the UI view stays on top
+    ctx.win.contentView.addChildView(view)
     view.setBounds(ctx.tabBounds())
     view.setVisible(false)
     this.wire(tab)

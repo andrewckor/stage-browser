@@ -240,13 +240,14 @@
     passClick: (x, y, button, clickCount) => record('passClick', x, y, button, clickCount),
     startWindowDrag: () => record('startWindowDrag'),
     endWindowDrag: () => record('endWindowDrag'),
+    windowAction: (action) => record('windowAction', action),
   } satisfies StageApi
   window.stage = api
 
   const mockCss = document.createElement('style')
   mockCss.textContent =
     'browser-action-list{display:flex}' +
-    '.mock-action{width:24px;height:24px;margin:0 2px;border-radius:6px;display:grid;place-items:center;-webkit-app-region:no-drag}' +
+    '.mock-action{width:24px;height:24px;margin:0 2px;border-radius:6px;display:grid;place-items:center}' +
     '.mock-action:hover{background:var(--hover)}' +
     '.mock-action i{width:16px;height:16px;border-radius:5px;background:linear-gradient(135deg,#8b5cf6,#6366f1);display:grid;place-items:center}' +
     '.mock-action svg{width:10px;height:10px}' +
@@ -382,6 +383,28 @@
       cap.dispatchEvent(new MouseEvent('mouseleave'))
       const hovers = calls.flatMap((c) => (c[0] === 'setBarHover' ? [c[1]] : []))
       check('capsule hover reports setBarHover(true/false)', hovers.join() === 'true,false')
+
+      const lights = q('#lights').getBoundingClientRect()
+      check('traffic lights sit in the leftmost 84px, centred on the capsule', lights.left >= 0 && lights.right <= 84 && Math.abs(lights.top + lights.height / 2 - 26) < 0.5, JSON.stringify(lights))
+      q('#light-close').click()
+      q('#light-minimize').click()
+      q('#light-zoom').click()
+      q('#light-zoom').dispatchEvent(new MouseEvent('click', { bubbles: true, altKey: true }))
+      const actions = calls.flatMap((c) => (c[0] === 'windowAction' ? [c[1]] : []))
+      check('traffic lights → windowAction close, minimize, fullscreen; Option-green → zoom', actions.join() === 'close,minimize,fullscreen,zoom', actions.join())
+
+      const strip = q('#strip')
+      const drags = () => countCalls('startWindowDrag') + '/' + countCalls('endWindowDrag')
+      ptr('pointerdown', strip, 60, 40)
+      ptr('pointerup', window, 60, 40)
+      check('strip background pointerdown → startWindowDrag, pointerup → endWindowDrag', drags() === '1/1', drags())
+      ptr('pointerdown', q('#new-tab'), 60, 40)
+      ptr('pointerdown', nth(live(), 0), 60, 40)
+      check('pointerdown on a button or a tab does not drag the window', drags() === '1/1', drags())
+      ptr('pointercancel', window, 60, 40)
+      strip.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }))
+      nth(live(), 0).dispatchEvent(new MouseEvent('dblclick', { bubbles: true }))
+      check('double-click on the strip background → windowAction("double-click"), on a tab → nothing', calls.filter((c) => c[0] === 'windowAction' && c[1] === 'double-click').length === 1)
 
       const t0 = nth(live(), 0)
       t0.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, button: 2 }))
