@@ -12,7 +12,7 @@
 </p>
 
 <p align="center">
-  <code>npx stage-browser https://example.com</code>
+  <code>npx stage-browser https://andrewckor.com</code>
 </p>
 
 <p align="center">
@@ -30,8 +30,8 @@ Stage gives it all back to the page. No toolbar, no address bar, no bookmarks ba
 **Zero installation.** `npx` runs Stage straight from npm: nothing to download from a website, drag into Applications or approve in System Settings.
 
 ```sh
-npx stage-browser https://example.com    # run it now
-npm i -g stage-browser                   # or keep the short `stage` command
+npx stage-browser https://andrewckor.com    # run it now
+npm i -g stage-browser                      # or keep the short `stage` command
 ```
 
 Needs macOS and Node 22 or later. The first launch downloads the Chromium runtime once (about 120 MB) and checks it against a pinned SHA-256.

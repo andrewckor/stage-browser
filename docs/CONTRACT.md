@@ -153,9 +153,9 @@ Main calls `ElectronChromeExtensions.handleCRXProtocol()` on the UI window's ses
 Stage runs as an npm package. `electron` is a regular dependency, so installing the package downloads Chromium, and the launcher runs it directly. Nothing gets bundled into an `.app`, so there is nothing to sign or notarize. The package is `stage-browser` and the command is `stage`:
 
 ```
-npx stage-browser https://example.com      # anyone, no install
-npm i -g stage-browser && stage            # anyone, installed
-npm run cli:install && stage               # from a clone of this repo
+npx stage-browser https://andrewckor.com    # anyone, no install
+npm i -g stage-browser && stage             # anyone, installed
+npm run cli:install && stage                # from a clone of this repo
 ```
 
 - `src/bin/stage.ts` (compiled to `dist/bin/stage.js`: `#!/usr/bin/env node`, CommonJS, no dependencies beyond `electron`) gets the binary path from `require('electron')` and spawns `<electron> <package root> <args>` with `detached: true, stdio: 'ignore'`, then `unref()`s and exits, so the terminal prompt comes straight back. With `--fg` it inherits stdio and waits.
