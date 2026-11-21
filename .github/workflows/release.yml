@@ -23,6 +23,9 @@ concurrency:
 jobs:
   release:
     runs-on: macos-latest # package.json limits installs to darwin
+    # Must match the environment on the npm trusted publisher. Its deployment
+    # rules on GitHub decide which branches, and which approvers, can publish.
+    environment: release
     env:
       ELECTRON_SKIP_BINARY_DOWNLOAD: 1
     steps:
