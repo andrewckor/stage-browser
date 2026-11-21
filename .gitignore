@@ -1,6 +1,6 @@
 node_modules/
 dist/
-out/
+build/icon-options/
 .DS_Store
 *.log
 selftest-out/

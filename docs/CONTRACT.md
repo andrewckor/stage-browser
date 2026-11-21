@@ -7,24 +7,27 @@ This file is the contract between the **main process** (`src/main/`, `src/preloa
 ## Layout
 
 ```
-src/main/main.js          entry: app lifecycle, window, wiring
-src/main/*.js             tabs, extensions, menu, persistence, url resolution (main side owns the split)
-src/preload/ui-preload.js exposes window.stage (below) to the UI renderer
-src/ui/index.html         the overlay UI: tab bar + omnibox
+src/shared/contract.ts      the typed interface below, imported by main, preload and UI
+src/main/main.ts            entry: app lifecycle, window, wiring
+src/main/*.ts               tabs, extensions, menu, persistence, url resolution (main side owns the split)
+src/preload/ui-preload.ts   exposes window.stage (below) to the UI renderer
+src/ui/index.html           the overlay UI: tab bar + omnibox
 src/ui/styles.css
-src/ui/app.js
-src/ui/mock.js            fake window.stage so the UI renders in a plain browser (preview/screenshots)
-src/ui/newtab.html        the page a new, empty tab shows (self-contained, no window.stage)
-scripts/ui-preview.js     screenshots the UI in mock mode with headless Chrome
-bin/stage.js              terminal launcher, the npm `bin` (see "Terminal launch")
-scripts/install-cli.sh    symlinks bin/stage into ~/.local/bin
+src/ui/app.ts
+src/ui/mock.ts              fake window.stage so the UI renders in a plain browser (preview/screenshots)
+src/ui/newtab.html          the page a new, empty tab shows (self-contained, no window.stage)
+src/bin/stage.ts            terminal launcher, the npm `bin` (see "Terminal launch")
+scripts/ui-preview.mts      screenshots the UI in mock mode with headless Chrome
+scripts/install-cli.sh      symlinks dist/bin/stage.js into ~/.local/bin
 ```
+
+`npm run build` compiles `src/` to `dist/` with `tsc` and copies the HTML and CSS alongside. The UI files and `src/preload/extension-compat.ts` compile as classic scripts, not modules: the UI page's CSP allows only `'self'` scripts, and sandboxed preloads have no `exports`.
 
 ## Window and views
 
 - One `BaseWindow` (macOS `titleBarStyle: 'hidden'`, traffic lights hidden until the bar shows).
 - Each tab is a `WebContentsView` on the persistent session `persist:stage`. Tab views fill the whole content area, unless the bar is **pinned** (then they start at `y = BAR_HEIGHT`).
-- The UI is one more `WebContentsView` with a transparent background, stacked on top of the tab views. It loads `src/ui/index.html` with `src/preload/ui-preload.js` (`contextIsolation: true`, `sandbox: false`).
+- The UI is one more `WebContentsView` with a transparent background, stacked on top of the tab views. It loads `dist/ui/index.html` with `dist/preload/ui-preload.js` (`contextIsolation: true`, `sandbox: false`).
 
 ### UI view bounds (main process sets these)
 
@@ -48,7 +51,7 @@ scripts/install-cli.sh    symlinks bin/stage into ~/.local/bin
 
 ## `window.stage` (exposed by the preload)
 
-All methods are fire-and-forget unless they return a Promise.
+All methods are fire-and-forget unless they return a Promise. The source of truth is `StageApi` in `src/shared/contract.ts`; this sketch mirrors it.
 
 ```ts
 type Tab = {
@@ -140,8 +143,8 @@ npm i -g stage-browser && stage            # anyone, installed
 npm run cli:install && stage               # from a clone of this repo
 ```
 
-- `bin/stage.js` (`#!/usr/bin/env node`, CommonJS, no dependencies beyond `electron`) gets the binary path from `require('electron')` and spawns `<electron> <package root> <args>` with `detached: true, stdio: 'ignore'`, then `unref()`s and exits, so the terminal prompt comes straight back. With `--fg` it inherits stdio and waits.
-- `npm run cli:install` (`scripts/install-cli.sh`) runs `npm install` if `node_modules` is missing, then symlinks `bin/stage.js` to `~/.local/bin/stage`. The launcher must resolve its real path through that symlink.
+- `src/bin/stage.ts` (compiled to `dist/bin/stage.js`: `#!/usr/bin/env node`, CommonJS, no dependencies beyond `electron`) gets the binary path from `require('electron')` and spawns `<electron> <package root> <args>` with `detached: true, stdio: 'ignore'`, then `unref()`s and exits, so the terminal prompt comes straight back. With `--fg` it inherits stdio and waits.
+- `npm run cli:install` (`scripts/install-cli.sh`) runs `npm install` if `node_modules` is missing, builds, then symlinks `dist/bin/stage.js` to `~/.local/bin/stage`. The launcher must resolve its real path through that symlink.
 - **One profile for every install path.** Main sets `app.setName('Stage')` and `app.setPath('userData', <appData>/Stage)` before `ready`. A clone, a global install, and an npx run then share the same cookies, logins, session, and installed extensions.
 
 ```
@@ -155,7 +158,7 @@ stage --help
 ```
 
 - A single-instance lock means a second `stage …` call forwards its arguments to the running window (`second-instance` event) and brings it to the front instead of starting another copy.
-- macOS takes the menu-bar app name, Dock label and icon from the app bundle, so the launcher runs a renamed copy of Electron's bundle: `~/Library/Application Support/Stage/Runtime/electron-<version>-r<n>/Stage.app`. It's an APFS clone with `CFBundleName`/`CFBundleDisplayName` set to Stage, `CFBundleIdentifier` set to `app.stage.browser`, `build/icon.icns` as its icon, re-signed ad-hoc. It's rebuilt when the Electron version or `RUNTIME_REVISION` in `bin/stage.js` changes. `STAGE_PLAIN_ELECTRON=1` skips it.
+- macOS takes the menu-bar app name, Dock label and icon from the app bundle, so the launcher runs a renamed copy of Electron's bundle: `~/Library/Application Support/Stage/Runtime/electron-<version>-r<n>/Stage.app`. It's an APFS clone with `CFBundleName`/`CFBundleDisplayName` set to Stage, `CFBundleIdentifier` set to `app.stage.browser`, `build/icon.icns` as its icon, re-signed ad-hoc. It's rebuilt when the Electron version or `RUNTIME_REVISION` in `src/bin/stage.ts` changes. `STAGE_PLAIN_ELECTRON=1` skips it.
 
 ## Keyboard shortcuts (main process, app menu accelerators)
 

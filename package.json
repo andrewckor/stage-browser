@@ -3,12 +3,17 @@
   "productName": "Stage",
   "version": "0.1.0",
   "description": "A minimal Chromium browser for screen sharing: the page fills the window, tabs hide until you reach for them.",
-  "main": "src/main/main.js",
+  "main": "dist/main/main.js",
   "scripts": {
-    "start": "electron .",
-    "selftest": "STAGE_SELFTEST=1 electron .",
-    "ui:preview": "node scripts/ui-preview.js",
-    "cli:install": "sh scripts/install-cli.sh"
+    "build": "rm -rf dist && tsc && cp src/ui/*.html src/ui/*.css dist/ui/ && chmod +x dist/bin/stage.js",
+    "typecheck": "tsc --noEmit && tsc -p scripts",
+    "prepare": "npm run build",
+    "start": "npm run build && electron .",
+    "selftest": "npm run build && STAGE_SELFTEST=1 electron .",
+    "ui:preview": "npm run build && node scripts/ui-preview.mts",
+    "cli:install": "sh scripts/install-cli.sh",
+    "lint": "oxlint --deny-warnings",
+    "lint:fix": "oxlint --fix"
   },
   "dependencies": {
     "electron": "^45.4.1",
@@ -16,11 +21,10 @@
     "electron-chrome-web-store": "^0.13.0"
   },
   "bin": {
-    "stage": "bin/stage.js"
+    "stage": "dist/bin/stage.js"
   },
   "files": [
-    "bin/",
-    "src/",
+    "dist/",
     "build/icon.png",
     "build/icon.icns",
     "README.md"
@@ -47,5 +51,10 @@
   "homepage": "https://github.com/andrewckor/stage-browser#readme",
   "bugs": {
     "url": "https://github.com/andrewckor/stage-browser/issues"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2",
+    "oxlint": "^1.94.0",
+    "typescript": "^7.0.2"
   }
 }

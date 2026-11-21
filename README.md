@@ -122,8 +122,10 @@ Not yet. Stage is macOS only.
 git clone https://github.com/andrewckor/stage-browser
 cd stage-browser
 npm install
-npm start              # run from source
-npm run cli:install    # link bin/stage.js to ~/.local/bin/stage
+npm start              # build to dist/ and run
+npm run cli:install    # build and link dist/bin/stage.js to ~/.local/bin/stage
+npm run typecheck      # tsc over src/ and scripts/
+npm run lint           # oxlint, warnings fail
 npm run selftest       # scripted end-to-end checks; writes selftest-out/results.json and screenshots
 npm run ui:preview     # render the tab bar and address box in mock mode with headless Chrome
 ```
