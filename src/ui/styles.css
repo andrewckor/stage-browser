@@ -335,6 +335,99 @@ browser-action-list::part(action):hover { background-color: var(--hover); }
 browser-action-list::part(action):active { background-color: var(--press); }
 browser-action-list::part(badge) { font: 600 9px/12px var(--font); }
 
+/* ---------- sidebar layout ---------- */
+
+/* html[data-side="left|right"] (app.ts): the strip is a full-height column on that edge, the
+   capsule a vertical panel with the traffic lights in its top-left, the tab list scrolling
+   under them, then the new-tab row, and the extension icons at the bottom. */
+:root[data-side] #strip {
+  inset: 0 auto 0 0;
+  width: var(--sidebar-w, 248px);
+  height: auto;
+  padding: 8px;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: stretch;
+}
+:root[data-side="right"] #strip { inset: 0 0 0 auto; }
+
+:root[data-side] #capsule {
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+  height: auto;
+  min-height: 0;
+  max-width: none;
+  padding: 36px 6px 6px;           /* 36px: the lights' row */
+  transform: translateX(-10px);
+}
+:root[data-side="right"] #capsule { transform: translateX(10px); }
+:root[data-side="left"] #capsule {
+  box-shadow:
+    inset 0 .5px 0 var(--highlight),
+    0 0 0 .5px var(--edge),
+    1px 0 2px rgb(0 0 0 / .08),
+    4px 2px 10px -2px var(--shadow-c),
+    10px 4px 24px -10px var(--shadow-c);
+}
+:root[data-side="right"] #capsule {
+  box-shadow:
+    inset 0 .5px 0 var(--highlight),
+    0 0 0 .5px var(--edge),
+    -1px 0 2px rgb(0 0 0 / .08),
+    -4px 2px 10px -2px var(--shadow-c),
+    -10px 4px 24px -10px var(--shadow-c);
+}
+:root[data-side].bar-visible #capsule { transform: none; }
+:root[data-side].bar-pinned #capsule {
+  box-shadow:
+    inset 0 .5px 0 var(--highlight),
+    0 0 0 .5px var(--edge),
+    0 1px 2px rgb(0 0 0 / .08),
+    0 2px 6px -1px var(--shadow-c);
+}
+
+:root[data-side] #tabs {
+  flex: 0 1 auto;
+  flex-direction: column;
+  height: auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+:root[data-side] #tabs.fade-l { -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 16px); mask-image: linear-gradient(180deg, transparent 0, #000 16px); }
+:root[data-side] #tabs.fade-r { -webkit-mask-image: linear-gradient(0deg, transparent 0, #000 16px); mask-image: linear-gradient(0deg, transparent 0, #000 16px); }
+:root[data-side] #tabs.fade-l.fade-r { -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 16px, #000 calc(100% - 16px), transparent 100%); mask-image: linear-gradient(180deg, transparent 0, #000 16px, #000 calc(100% - 16px), transparent 100%); }
+
+:root[data-side] .tab { flex: 0 0 auto; min-width: 0; height: 32px; }
+:root[data-side] .tab.entering { animation-name: tab-in-v; }
+:root[data-side] .tab.closing { animation-name: tab-out-v; }
+@keyframes tab-in-v { from { height: 0; opacity: 0; } }
+@keyframes tab-out-v { to { height: 0; margin-bottom: -2px; opacity: 0; } }
+:root[data-side] .title {
+  margin-right: max(0px, calc(var(--reserve) - 4px));   /* ellipsis stops short of the close button / audio glyph */
+  text-overflow: ellipsis;
+  -webkit-mask-image: none;
+  mask-image: none;
+}
+:root[data-side] .aud { top: 9px; }
+:root[data-side] .close { top: 6px; }
+
+:root[data-side] #new-tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 32px;
+  padding: 0 8px;
+  font-weight: 500;
+}
+:root[data-side] #new-tab::after { content: "New Tab"; }
+
+:root[data-side] #controls { margin-top: auto; flex-wrap: wrap; gap: 2px; padding-top: 4px; }
+:root[data-side] .divider { width: 100%; height: 1px; margin: 0 0 4px; }
+
 /* ---------- omnibox ---------- */
 
 #omni { position: fixed; inset: 0; z-index: 10; }
@@ -432,7 +525,7 @@ kbd {
 /* ---------- reduced motion ---------- */
 
 @media (prefers-reduced-motion: reduce) {
-  #capsule, .bar-visible #capsule { transform: none; transition: opacity 80ms linear; }
+  #capsule, .bar-visible #capsule, :root[data-side] #capsule { transform: none; transition: opacity 80ms linear; }
   .tab, .tab.dragging { transition: background-color 80ms linear, color 80ms linear, box-shadow 80ms linear; }
   .tab.entering, .tab.closing, #omni-backdrop, #omni-panel { animation-duration: 1ms; }
   #omni-panel { animation-name: fade-in; }

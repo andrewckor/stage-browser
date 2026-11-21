@@ -68,6 +68,11 @@ export class UiWindow {
       .once('closed', () => this.destroy())
   }
 
+  // Where this window's origin sits in the page window's content area.
+  get origin(): { x: number; y: number } {
+    return { x: this.rect.x, y: this.rect.y }
+  }
+
   get shown(): boolean {
     return this.wanted
   }

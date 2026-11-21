@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Screenshots the UI in mock mode with headless Google Chrome, then runs the in-page self-checks.
-// Usage: node scripts/ui-preview.mts [--only=scene[,scene]] [--size=1280x800] [--no-selfcheck]
+// Usage: node scripts/ui-preview.mts [--only=scene[,scene]]  (scene:left / scene:right previews the sidebar layout) [--size=1280x800] [--no-selfcheck]
 // Output: selftest-out/ui-preview/<scene>-<theme>-<backdrop>-<WxH>.png
 import { execFile } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs'
@@ -10,6 +10,7 @@ import { pathToFileURL } from 'node:url'
 
 interface Job {
   scene: string
+  layout: string
   theme: string
   backdrop: string
   size: string
@@ -21,7 +22,7 @@ const OUT = join(ROOT, 'selftest-out', 'ui-preview')
 const PAGE = pathToFileURL(join(ROOT, 'dist', 'ui', 'index.html')).href
 
 const arg = (name: string) => process.argv.find((a) => a.startsWith(`--${name}=`))?.split('=')[1]
-const SCENES = (arg('only') ?? 'bar,omnibox,omnibox-edit,many,loading,pinned,single,newtab').split(',')
+const SCENES = (arg('only') ?? 'bar,omnibox,omnibox-edit,many,loading,pinned,single,newtab,bar:left,bar:right,many:left,pinned:right,omnibox:left').split(',')
 const SIZES = (arg('size') ?? '1280x800,640x400').split(',')
 const THEMES = ['dark', 'light']
 const BACKDROPS = ['light', 'dark']
@@ -57,11 +58,14 @@ const unescape = (s: string) => s.replace(/&gt;/g, '>').replace(/&lt;/g, '<').re
 async function main(): Promise<void> {
   if (!existsSync(CHROME)) throw new Error(`Chrome not found at ${CHROME} (set CHROME=...)`)
   mkdirSync(OUT, { recursive: true })
-  const jobs: Job[] = SCENES.flatMap((scene) => THEMES.flatMap((theme) => BACKDROPS.flatMap((backdrop) => SIZES.map((size) => ({ scene, theme, backdrop, size })))))
+  const jobs: Job[] = SCENES.flatMap((name) => {
+    const [scene = '', layout = 'top'] = name.split(':')
+    return THEMES.flatMap((theme) => BACKDROPS.flatMap((backdrop) => SIZES.map((size) => ({ scene, layout, theme, backdrop, size }))))
+  })
 
   await pool(jobs, 4, async (j) => {
-    const file = join(OUT, `${j.scene}-${j.theme}-${j.backdrop}-${j.size}.png`)
-    const url = `${PAGE}?scene=${j.scene}&theme=${j.theme}&backdrop=${j.backdrop}&anim=0`
+    const file = join(OUT, `${j.scene}${j.layout === 'top' ? '' : `-${j.layout}`}-${j.theme}-${j.backdrop}-${j.size}.png`)
+    const url = `${PAGE}?scene=${j.scene}&layout=${j.layout}&theme=${j.theme}&backdrop=${j.backdrop}&anim=0`
     await chrome([`--screenshot=${file}`, `--window-size=${j.size.replace('x', ',')}`, '--virtual-time-budget=2500', url])
     process.stdout.write('.')
   })

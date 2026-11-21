@@ -5,6 +5,7 @@
 //   scene     bar | single | many | loading | pinned | omnibox | omnibox-edit | newtab
 //   theme     dark | light
 //   backdrop  light | dark       paints a fake web page behind the transparent UI
+//   layout    top | left | right   tab bar position (default top)
 //   anim      0                  disables transitions, for deterministic screenshots
 //   visible   0                  starts with the bar hidden
 //   selfcheck main | many        runs in-page interaction checks; results land in #selfcheck
@@ -112,6 +113,8 @@
     }
   }
 
+  const layoutParam = params.get('layout')
+  const layout = layoutParam === 'left' || layoutParam === 'right' ? layoutParam : 'top'
   const initial = sceneTabs()
   const st: StageState = {
     tabs: initial.tabs,
@@ -124,6 +127,8 @@
     extensionActions: 2,
     overlay: null,
     barHeight: 52,
+    tabLayout: layout,
+    sidebarWidth: 248,
     fullscreen: false,
   }
   const omnibox = (mode: OmniboxMode, text: string) => ({ type: 'omnibox', mode, initial: text, nonce: ++nonce }) as const

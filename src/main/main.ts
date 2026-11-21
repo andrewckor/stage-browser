@@ -3,7 +3,7 @@ import type { ElectronChromeExtensions } from 'electron-chrome-extensions'
 import { appendFileSync, existsSync, mkdtempSync, statSync, truncateSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, extname, join, resolve } from 'node:path'
-import { channel, type Overlay, type StageState } from '../shared/contract'
+import { channel, type Overlay, type StageState, type TabLayout } from '../shared/contract'
 import { parseArgs, type LaunchArgs } from './cli-args'
 import type { BarFlags, Ctx } from './context'
 import { actionCount, createExtensions, setupExtensionStore } from './extensions'
@@ -14,7 +14,7 @@ import { flushHistory, readPrefs, readSession, writePrefs, writeSession, type Sa
 import { Tabs } from './tabs'
 import { UiWindow } from './ui-window'
 import { resolveInput } from './url'
-import { BAR_HEIGHT, createWindow, tabBounds, uiBounds, WindowDrag } from './window'
+import { BAR_HEIGHT, createWindow, SIDEBAR_WIDTH, tabBounds, uiBounds, WindowDrag } from './window'
 
 const APP_ROOT = resolve(__dirname, '..', '..')
 const SELFTEST = !!process.env.STAGE_SELFTEST
@@ -124,7 +124,7 @@ class Stage implements Ctx {
 
   layout(): void {
     if (this.win.isDestroyed() || this.ui.win.isDestroyed()) return
-    this.ui.setBounds(uiBounds(this.win, this.bar.pinned, this.overlay !== null))
+    this.ui.setBounds(uiBounds(this.win, this.prefs.tabLayout, this.bar.pinned, this.overlay !== null))
     this.tabs.layout()
   }
 
@@ -136,6 +136,8 @@ class Stage implements Ctx {
       extensionActions: actionCount(this.session),
       overlay: this.overlay,
       barHeight: BAR_HEIGHT,
+      tabLayout: this.prefs.tabLayout,
+      sidebarWidth: SIDEBAR_WIDTH,
       fullscreen: !this.win.isDestroyed() && this.win.isFullScreen(),
     }
   }
@@ -184,6 +186,15 @@ class Stage implements Ctx {
     writePrefs(this.prefs)
     this.push()
     this.rebuildMenu()
+  }
+
+  setTabLayout(layout: TabLayout): void {
+    if (this.prefs.tabLayout !== layout) {
+      this.prefs.tabLayout = layout
+      writePrefs(this.prefs)
+      this.reveal.relayout()
+    }
+    this.rebuildMenu() // the radio items follow the pref even when a click re-picked the current one
   }
 
   applyArgs(args: LaunchArgs, initial: boolean): void {

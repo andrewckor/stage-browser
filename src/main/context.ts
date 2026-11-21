@@ -1,6 +1,6 @@
 import type { BaseWindow, Rectangle, Session } from 'electron'
 import type { ElectronChromeExtensions } from 'electron-chrome-extensions'
-import type { Overlay, StageState } from '../shared/contract'
+import type { Overlay, StageState, TabLayout } from '../shared/contract'
 import type { Reveal } from './reveal'
 import type { Prefs } from './store'
 import type { Tabs } from './tabs'
@@ -36,4 +36,5 @@ export interface Ctx {
   rebuildMenu(): void
   getState(): StageState
   setHideExtensionIcons(hide: boolean): void
+  setTabLayout(layout: TabLayout): void
 }

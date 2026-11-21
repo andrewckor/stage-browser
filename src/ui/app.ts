@@ -49,10 +49,11 @@
     failedFavicon: string | null
   }
 
+  // A tab's extent along the list's axis: horizontal in the top bar, vertical in the sidebar.
   interface Slot {
     node: HTMLElement
-    left: number
-    width: number
+    start: number
+    size: number
     center: number
   }
 
@@ -60,7 +61,7 @@
     started: false
     id: TabId
     node: HTMLElement
-    startX: number
+    startPos: number
     startScroll: number
     wasActive: boolean
     pointerId: number
@@ -71,8 +72,8 @@
     slots: Slot[]
     index: number
     target: number
-    minDx: number
-    maxDx: number
+    minD: number
+    maxD: number
   }
 
   type Drag = PendingDrag | ActiveDrag
@@ -132,7 +133,7 @@
     return /^[a-z][a-z0-9+.-]*:\/\//i.test(v) || /^localhost(:\d+)?(\/|$)/i.test(v) || /^[^\s/]+\.[a-z]{2,}(:\d+)?(\/|$|\?)/i.test(v)
   }
 
-  const translateX = (px: number): string => (px ? `translateX(${px}px)` : '')
+  const translate = (px: number, vertical: boolean): string => (px ? `translate${vertical ? 'Y' : 'X'}(${px}px)` : '')
 
   const tabIdOf = (node: HTMLElement): TabId => Number(node.dataset.id)
 
@@ -149,8 +150,8 @@
 
   const settleOffset = (d: ActiveDrag): number => {
     let dx = 0
-    if (d.target > d.index) for (let i = d.index + 1; i <= d.target; i++) dx += (d.slots[i]?.width ?? 0) + TAB_GAP
-    else for (let i = d.target; i < d.index; i++) dx -= (d.slots[i]?.width ?? 0) + TAB_GAP
+    if (d.target > d.index) for (let i = d.index + 1; i <= d.target; i++) dx += (d.slots[i]?.size ?? 0) + TAB_GAP
+    else for (let i = d.target; i < d.index; i++) dx -= (d.slots[i]?.size ?? 0) + TAB_GAP
     return dx
   }
 
@@ -174,6 +175,7 @@
     const zoomBtn = byId('light-zoom', HTMLButtonElement)
     const tabsEl = byId('tabs', HTMLElement)
     const controlsEl = byId('controls', HTMLElement)
+    const actionList = child(controlsEl, 'browser-action-list', HTMLElement)
     const newBtn = byId('new-tab', HTMLButtonElement)
     const omni = byId('omni', HTMLElement)
     const backdrop = byId('omni-backdrop', HTMLElement)
@@ -186,9 +188,13 @@
     let state: StageState | null = null
     let drag: Drag | null = null
     let firstRender = true
+    let shownLayout: StageState['tabLayout'] = 'top'
     let layoutQueued = false
 
     const ob: OmniboxView = { open: false, mode: 'new', initial: '', nonce: null, items: [], sel: 0, seq: 0, timer: undefined, answered: null }
+
+    // Sidebar layouts stack the tabs; every axis-dependent piece below follows this.
+    const vertical = (): boolean => !!state && state.tabLayout !== 'top'
 
     const apply = (next: StageState): void => {
       const initial = state === null
@@ -202,6 +208,16 @@
       Array.from(tabsEl.children).filter((c): c is HTMLElement => c instanceof HTMLElement && !c.classList.contains('closing'))
 
     const renderBar = (s: StageState, initial: boolean): void => {
+      if (shownLayout !== s.tabLayout) {
+        shownLayout = s.tabLayout
+        onDragCancel() // positions measured on the old axis
+        tabsEl.scrollTo(0, 0)
+      }
+      if (s.tabLayout === 'top') delete root.dataset.side
+      else root.dataset.side = s.tabLayout
+      root.style.setProperty('--sidebar-w', `${s.sidebarWidth}px`)
+      // Where the extension popups open from: below the capsule, or above the sidebar's bottom icons.
+      actionList.setAttribute('alignment', s.tabLayout === 'top' ? 'bottom right' : `top ${s.tabLayout === 'left' ? 'right' : 'left'}`)
       if (initial) {
         if (s.bar.visible) {
           void capsule.offsetWidth
@@ -332,12 +348,14 @@
 
     const keepInView = (node: HTMLElement): void => {
       requestAnimationFrame(() => {
-        const l = node.offsetLeft
-        const r = l + node.offsetWidth
-        const vl = tabsEl.scrollLeft
-        const vr = vl + tabsEl.clientWidth
-        if (l < vl + 8) tabsEl.scrollTo({ left: Math.max(0, l - 8), behavior: 'smooth' })
-        else if (r > vr - 8) tabsEl.scrollTo({ left: r - tabsEl.clientWidth + 8, behavior: 'smooth' })
+        const v = vertical()
+        const l = v ? node.offsetTop : node.offsetLeft
+        const r = l + (v ? node.offsetHeight : node.offsetWidth)
+        const vl = v ? tabsEl.scrollTop : tabsEl.scrollLeft
+        const vr = vl + (v ? tabsEl.clientHeight : tabsEl.clientWidth)
+        const to = (pos: number): void => tabsEl.scrollTo({ [v ? 'top' : 'left']: Math.max(0, pos), behavior: 'smooth' })
+        if (l < vl + 8) to(l - 8)
+        else if (r > vr - 8) to(r - (v ? tabsEl.clientHeight : tabsEl.clientWidth) + 8)
       })
     }
 
@@ -347,6 +365,11 @@
       requestAnimationFrame(() => {
         layoutQueued = false
         const n = views.size
+        // The sidebar scrolls instead of shrinking its tabs.
+        if (vertical()) {
+          tabsEl.classList.remove('compact')
+          return updateFades()
+        }
         const fixed = CAPSULE_PAD + newBtn.offsetWidth + controlsEl.offsetWidth + TAB_GAP * 2
         const avail = root.clientWidth - STRIP_LEFT - STRIP_RIGHT - fixed
         tabsEl.classList.toggle('compact', n > 1 && n * TAB_MIN + (n - 1) * TAB_GAP > avail)
@@ -355,17 +378,23 @@
     }
 
     const updateFades = (): void => {
-      const max = tabsEl.scrollWidth - tabsEl.clientWidth
-      tabsEl.classList.toggle('fade-l', tabsEl.scrollLeft > 1)
-      tabsEl.classList.toggle('fade-r', max > 1 && tabsEl.scrollLeft < max - 1)
+      // fade-l / fade-r mean the start / end of the list's axis.
+      const v = vertical()
+      const pos = v ? tabsEl.scrollTop : tabsEl.scrollLeft
+      const max = v ? tabsEl.scrollHeight - tabsEl.clientHeight : tabsEl.scrollWidth - tabsEl.clientWidth
+      tabsEl.classList.toggle('fade-l', pos > 1)
+      tabsEl.classList.toggle('fade-r', max > 1 && pos < max - 1)
     }
 
 
     const beginDrag = (d: PendingDrag): ActiveDrag => {
       const nodes = liveTabNodes()
+      const v = vertical()
       const slots = nodes.map((node): Slot => {
         const r = node.getBoundingClientRect()
-        return { node, left: r.left, width: r.width, center: r.left + r.width / 2 }
+        const start = v ? r.top : r.left
+        const size = v ? r.height : r.width
+        return { node, start, size, center: start + size / 2 }
       })
       const index = nodes.indexOf(d.node)
       const me = slots[index]
@@ -377,7 +406,7 @@
         d.node.setPointerCapture(d.pointerId)
       } catch {}
       document.body.style.cursor = 'grabbing'
-      return { ...d, started: true, slots, index, target: index, minDx: first.left - me.left, maxDx: last.left + last.width - me.width - me.left }
+      return { ...d, started: true, slots, index, target: index, minD: first.start - me.start, maxD: last.start + last.size - me.size - me.start }
     }
 
 
@@ -385,26 +414,27 @@
 
     const onDragMove = (e: PointerEvent): void => {
       if (!drag) return
-      const raw = e.clientX - drag.startX + (tabsEl.scrollLeft - drag.startScroll)
+      const v = vertical()
+      const raw = (v ? e.clientY : e.clientX) - drag.startPos + ((v ? tabsEl.scrollTop : tabsEl.scrollLeft) - drag.startScroll)
       if (!drag.started) {
         if (Math.abs(raw) < DRAG_THRESHOLD) return
         drag = beginDrag(drag)
       }
       const d = drag
       const me = draggedSlot(d)
-      const dx = Math.max(d.minDx, Math.min(d.maxDx, raw))
-      d.node.style.transform = translateX(dx)
+      const dx = Math.max(d.minD, Math.min(d.maxD, raw))
+      d.node.style.transform = translate(dx, v)
       const center = me.center + dx
       const target = d.slots.filter((s, i) => i !== d.index && s.center < center).length
       if (target === d.target) return
       d.target = target
-      const w = me.width + TAB_GAP
+      const w = me.size + TAB_GAP
       d.slots.forEach((s, i) => {
         if (i === d.index) return
         let shift = 0
         if (target > d.index && i > d.index && i <= target) shift = -w
         else if (target < d.index && i >= target && i < d.index) shift = w
-        s.node.style.transform = translateX(shift)
+        s.node.style.transform = translate(shift, v)
       })
     }
 
@@ -425,7 +455,7 @@
         return
       }
       d.node.style.transition = 'transform 140ms var(--ease-out), background-color 140ms ease, box-shadow 140ms ease'
-      d.node.style.transform = translateX(settleOffset(d))
+      d.node.style.transform = translate(settleOffset(d), vertical())
       setTimeout(() => commitDrag(d), SETTLE_MS)
     }
 
@@ -574,13 +604,16 @@
     stage.getState().then(apply, () => {})
     stage.onState(apply)
 
-    // When the bar floats over the page, the view reaches below the strip so the capsule's shadow
+    // When the bar floats over the page, the view reaches past the strip so the capsule's shadow
     // isn't clipped. Clicks in that transparent band belong to the page underneath.
     document.addEventListener(
       'pointerdown',
       (e) => {
         if (e.target !== document.body && e.target !== root) return
-        if (!state || state.overlay || e.clientY < state.barHeight) return
+        if (!state || state.overlay) return
+        const { tabLayout: layout, sidebarWidth: w, barHeight: h } = state
+        const inStrip = layout === 'top' ? e.clientY < h : layout === 'left' ? e.clientX < w : e.clientX >= root.clientWidth - w
+        if (inStrip) return
         e.preventDefault()
         stage.passClick(e.clientX, e.clientY, e.button, e.detail || 1)
       },
@@ -591,7 +624,7 @@
     tabsEl.addEventListener(
       'wheel',
       (e) => {
-        if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return
+        if (vertical() || Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return
         tabsEl.scrollLeft += e.deltaY
         e.preventDefault()
       },
@@ -628,9 +661,9 @@
         e.preventDefault()
         if (node.classList.contains('active')) stage.openOmnibox('edit')
         else stage.activateTab(id)
-      } else if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+      } else if (e.key === (vertical() ? 'ArrowDown' : 'ArrowRight') || e.key === (vertical() ? 'ArrowUp' : 'ArrowLeft')) {
         const nodes = liveTabNodes()
-        const next = nodes[nodes.indexOf(node) + (e.key === 'ArrowRight' ? 1 : -1)]
+        const next = nodes[nodes.indexOf(node) + (e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : -1)]
         if (!next) return
         e.preventDefault()
         next.focus()
@@ -647,7 +680,8 @@
       const id = tabIdOf(node)
       const wasActive = state?.activeTabId === id
       if (!wasActive) stage.activateTab(id)
-      drag = { started: false, id, node, startX: e.clientX, startScroll: tabsEl.scrollLeft, wasActive, pointerId: e.pointerId }
+      const v = vertical()
+      drag = { started: false, id, node, startPos: v ? e.clientY : e.clientX, startScroll: v ? tabsEl.scrollTop : tabsEl.scrollLeft, wasActive, pointerId: e.pointerId }
       window.addEventListener('pointermove', onDragMove)
       window.addEventListener('pointerup', onDragEnd)
       window.addEventListener('pointercancel', onDragCancel)

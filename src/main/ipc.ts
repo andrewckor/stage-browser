@@ -47,9 +47,11 @@ export function setupIpc(ctx: Ctx): void {
       const tab = tabs.active
       if (!tab || tab.wc.isDestroyed() || !Number.isFinite(x) || !Number.isFinite(y)) return
       reveal.hideNow()
+      // The UI window is not always at the page's origin (a right sidebar sits at its far edge).
+      const { x: ox, y: oy } = ctx.ui.origin
       const ev = {
-        x: Math.round(x),
-        y: Math.round(y),
+        x: Math.round(x + ox),
+        y: Math.round(y + oy),
         button: BUTTONS[button] ?? 'left',
         clickCount: Math.min(3, Math.max(1, clickCount || 1)),
       }

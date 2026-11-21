@@ -11,6 +11,7 @@ export interface InstalledExtension {
 }
 
 export interface ActionPopup {
+  anchorRect?: { x: number; y: number }
   readonly browserWindow?: BrowserWindow
   destroy(): void
   isDestroyed(): boolean
@@ -38,6 +39,10 @@ export function createExtensions(ctx: Ctx): ElectronChromeExtensions {
 
   ext.on('browser-action-popup-created', (popup: ActionPopup) => {
     ctx.reveal.setPopupOpen(true)
+    // The library places the popup from an anchor measured in the UI window but reads it as
+    // relative to the page window; the right-hand sidebar's window is offset from that origin.
+    const { x, y } = ctx.ui.origin
+    if (popup.anchorRect) Object.assign(popup.anchorRect, { x: popup.anchorRect.x + x, y: popup.anchorRect.y + y })
     if (!ctx.quitting) ctx.reveal.show()
     // The library's blur handling can miss focus moving to a BaseWindow.
     const onFocus = () => {

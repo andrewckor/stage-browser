@@ -1,5 +1,6 @@
 import { Menu, dialog, type MenuItemConstructorOptions, type WebContents } from 'electron'
 import { execFile } from 'node:child_process'
+import type { TabLayout } from '../shared/contract'
 import type { Ctx } from './context'
 import { confirmFor, installed } from './extensions'
 import { WEB_STORE_URL, install, remove, webStoreId } from './web-store'
@@ -9,6 +10,12 @@ const SIZES: readonly (readonly [number, number])[] = [
   [1440, 900],
   [1600, 900],
   [1920, 1080],
+]
+
+const LAYOUTS: readonly (readonly [TabLayout, string])[] = [
+  ['top', 'Tabs on Top'],
+  ['left', 'Tabs on Left'],
+  ['right', 'Tabs on Right'],
 ]
 
 const hidden = (accelerator: string, click: () => void): MenuItemConstructorOptions => ({ label: accelerator, accelerator, click, visible: false })
@@ -103,6 +110,13 @@ export function buildMenu(ctx: Ctx): Menu {
         { label: 'Hard Reload', accelerator: 'CmdOrCtrl+Shift+R', click: withActive((wc) => wc.reloadIgnoringCache()) },
         { type: 'separator' },
         { label: 'Pin Tab Bar', type: 'checkbox', checked: ctx.bar.pinned, accelerator: 'CmdOrCtrl+Shift+B', click: () => reveal.setPinned(!ctx.bar.pinned) },
+        { type: 'separator' },
+        ...LAYOUTS.map<MenuItemConstructorOptions>(([layout, label]) => ({
+          label,
+          type: 'radio',
+          checked: ctx.prefs.tabLayout === layout,
+          click: () => ctx.setTabLayout(layout),
+        })),
         { type: 'separator' },
         { label: 'Zoom In', accelerator: 'CmdOrCtrl+=', click: () => tabs.zoom(0.1) },
         hidden('CmdOrCtrl+Plus', () => tabs.zoom(0.1)),

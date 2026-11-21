@@ -1,5 +1,5 @@
 // Scripted self-test: `npm run selftest`. No human input. Writes results.json and PNGs, exits 0 or 1.
-import { app, BaseWindow, BrowserWindow, Menu, shell, type NativeImage, type Rectangle, type Size } from 'electron'
+import { app, BaseWindow, BrowserWindow, Menu, screen, shell, type NativeImage, type Rectangle, type Size } from 'electron'
 import { createHash, generateKeyPairSync, sign } from 'node:crypto'
 import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -9,10 +9,12 @@ import { parseArgs } from './cli-args'
 import type { Ctx } from './context'
 import { idFromPublicKey, unzip, verifyCrx } from './crx'
 import { installed, type ActionPopup } from './extensions'
+import type { TabLayout } from '../shared/contract'
 import { readPrefs } from './store'
 import { suggest } from './suggest'
 import { NEWTAB_FILE, type Tab } from './tabs'
 import { resolveInput } from './url'
+import { SHADOW_ROOM, SIDEBAR_WIDTH } from './window'
 import { extensionsDir, install, installCrx, remove, webStoreId } from './web-store'
 
 interface Outcome {
@@ -53,17 +55,20 @@ async function waitFor<T>(fn: () => T | Promise<T>, timeout = 25_000, step = 100
 }
 
 // Draws PNG layers over each other in a hidden window's canvas; returns base64 PNG.
-async function composite(layers: readonly NativeImage[]): Promise<string> {
+// `offsets` places a layer at x,y in DIPs of a page `dipWidth` wide (the sidebar on the right edge).
+async function composite(layers: readonly NativeImage[], offsets: readonly { x: number; y: number }[] = [], dipWidth = 1): Promise<string> {
   const win = new BrowserWindow({ show: false, webPreferences: { sandbox: true } })
   try {
     await win.loadURL('about:blank')
     const urls = layers.map((img) => img.toDataURL())
     const dataUrl: string = await win.webContents.executeJavaScript(`(async () => {
       const urls = ${JSON.stringify(urls)};
+      const offsets = ${JSON.stringify(offsets)};
       const imgs = await Promise.all(urls.map(u => new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = u })));
       const c = document.createElement('canvas'); c.width = imgs[0].width; c.height = imgs[0].height;
       const g = c.getContext('2d');
-      imgs.forEach(i => g.drawImage(i, 0, 0));
+      const k = imgs[0].width / ${dipWidth};
+      imgs.forEach((i, n) => g.drawImage(i, (offsets[n]?.x ?? 0) * k, (offsets[n]?.y ?? 0) * k));
       return c.toDataURL('image/png');
     })()`)
     return dataUrl.replace(/^data:image\/png;base64,/, '')
@@ -459,6 +464,237 @@ export async function run(ctx: Ctx): Promise<void> {
     reveal.hide()
     tabs.close(tab.id)
     return { pass: floatH === 72 && clicked === 1 && hidden && pinnedH === 52, detail: JSON.stringify({ floatH, clicked, hidden, pinnedH }) }
+  })
+
+  // --- Sidebar layouts. The poller reads the real cursor, so these checks stand in a fake one. ---
+  const realCursor = screen.getCursorScreenPoint.bind(screen)
+  const cursorAt = (p: { x: number; y: number } | null) => {
+    screen.getCursorScreenPoint = p ? () => p : realCursor
+  }
+  const content = () => win.getContentBounds()
+  // The UI window's rect for a sidebar on `side`, in screen coordinates.
+  const sidebarRect = (side: 'left' | 'right', pinned: boolean): Rectangle => {
+    const c = content()
+    const width = SIDEBAR_WIDTH + (pinned ? 0 : SHADOW_ROOM)
+    return { x: side === 'left' ? c.x : c.x + c.width - width, y: c.y, width, height: c.height }
+  }
+  const edgeCursor = (side: 'left' | 'right', along = 0.5) => {
+    const c = content()
+    return { x: side === 'left' ? c.x + 2 : c.x + c.width - 3, y: Math.round(c.y + c.height * along) }
+  }
+  const centerCursor = () => {
+    const c = content()
+    return { x: Math.round(c.x + c.width / 2), y: Math.round(c.y + c.height / 2) }
+  }
+  const viewFills = () => {
+    const [cw = 0, ch = 0] = win.getContentSize()
+    return sameRect(activeTab().view.getBounds(), { x: 0, y: 0, width: cw, height: ch })
+  }
+  const layoutRadios = () =>
+    Menu.getApplicationMenu()
+      ?.items.find((i) => i.label === 'View')
+      ?.submenu?.items.filter((i) => i.type === 'radio')
+      .map((i) => `${i.label}${i.checked ? '*' : ''}`)
+      .join('|')
+  const radiosFor = (layout: TabLayout) =>
+    (['top', 'left', 'right'] as const).map((l) => `Tabs on ${l[0]?.toUpperCase()}${l.slice(1)}${l === layout ? '*' : ''}`).join('|')
+  // Whatever a failed sidebar check left behind: layout, pin, hover, omnibox, fake cursor.
+  const resetLayout = async () => {
+    cursorAt(null)
+    reveal.setHover(false)
+    reveal.closeOverlay()
+    reveal.setPinned(false)
+    ctx.setTabLayout('top')
+    reveal.hide()
+    await sleep(350)
+  }
+  const proofDir = process.env.STAGE_SELFTEST_SIDEBAR_SHOTS || OUT
+  const proof = async (name: string, side: 'left' | 'right', pinned: boolean) => {
+    const page = await activeTab().wc.capturePage()
+    const bar = await ui.capturePage()
+    mkdirSync(proofDir, { recursive: true })
+    const r = sidebarRect(side, pinned)
+    const png = await composite([page, bar], [{ x: 0, y: 0 }, { x: r.x - content().x, y: 0 }], content().width)
+    writeFileSync(join(proofDir, `${name}.png`), Buffer.from(png, 'base64'))
+  }
+
+  tabs.activate(t1.id)
+  for (const side of ['left', 'right'] as const) {
+
+    await check(`sidebar ${side}: pref switches and persists, menu radio and state follow, no restart`, async () => {
+      try {
+        ctx.setTabLayout(side)
+        const r = { pref: ctx.prefs.tabLayout === side, saved: readPrefs().tabLayout === side, radios: layoutRadios() === radiosFor(side), state: ctx.getState().tabLayout === side }
+        ctx.setTabLayout('top')
+        const back = { pref: ctx.prefs.tabLayout === 'top', saved: readPrefs().tabLayout === 'top', radios: layoutRadios() === radiosFor('top') }
+        return { pass: Object.values(r).every(Boolean) && Object.values(back).every(Boolean), detail: JSON.stringify({ r, back, radios: layoutRadios() }) }
+      } finally {
+        await resetLayout()
+      }
+    })
+
+    await check(`sidebar ${side}: pinned strip sits on the ${side} edge at full height, floating adds shadow room, page view fills`, async () => {
+      try {
+        ctx.setTabLayout(side)
+        reveal.setPinned(true)
+        await sleep(300)
+        const pinned = sameRect(uiWin.getBounds(), sidebarRect(side, true)) && uiWin.isVisible()
+        const fillsPinned = viewFills()
+        const guarded = uiWin.isContentProtected() && !uiWin.isFocusable()
+        reveal.setPinned(false)
+        reveal.show()
+        await sleep(300)
+        const floating = sameRect(uiWin.getBounds(), sidebarRect(side, false))
+        const fills = viewFills()
+        const dom: boolean = await ui.executeJavaScript(`document.documentElement.dataset.side === '${side}'`)
+        const r = { pinned, fillsPinned, guarded, floating, fills, dom }
+        return { pass: Object.values(r).every(Boolean), detail: JSON.stringify({ ...r, ui: uiWin.getBounds(), want: sidebarRect(side, false), content: content() }) }
+      } finally {
+        await resetLayout()
+      }
+    })
+
+    await check(`sidebar ${side}: touching the ${side} edge reveals, leaving hides after the delay, the top edge does not reveal`, async () => {
+      try {
+        ctx.setTabLayout(side)
+        reveal.hide()
+        await sleep(400)
+        const c = content()
+        cursorAt({ x: c.x + Math.round(c.width / 2), y: c.y + 2 })
+        await sleep(400)
+        const topInert = !ctx.bar.visible && !uiWin.isVisible()
+        const seen: boolean[] = []
+        for (const along of [0.02, 0.5, 0.98]) {
+          cursorAt(edgeCursor(side, along))
+          await sleep(400)
+          seen.push(ctx.bar.visible && uiWin.isVisible())
+          cursorAt(centerCursor())
+          reveal.setHover(false) // the real pointer may rest over the strip; the faked one has left
+          await sleep(1100)
+          seen.push(!ctx.bar.visible && !uiWin.isVisible())
+        }
+        // Inside the strip it stays up, however long the cursor rests there.
+        cursorAt({ x: edgeCursor(side).x + (side === 'left' ? 100 : -100), y: edgeCursor(side).y })
+        reveal.show()
+        await sleep(900)
+        const stays = ctx.bar.visible
+        const r = { topInert, seen: seen.every(Boolean), stays }
+        return { pass: Object.values(r).every(Boolean), detail: JSON.stringify({ ...r, seen }) }
+      } finally {
+        await resetLayout()
+      }
+    })
+
+    await check(`sidebar ${side}: a click outside the sidebar reaches the page`, async () => {
+      try {
+        const [cw = 0] = win.getContentSize()
+        const left = side === 'left' ? 230 : cw - 290 // spans the shadow room beside the sidebar
+        const page = 'data:text/html,' + encodeURIComponent(`<body style="margin:0"><button style="position:absolute;left:${left}px;top:270px;width:100px;height:60px" onclick="window.clicked=(window.clicked||0)+1">x</button></body>`)
+        const tab = tabs.create({ url: page, activate: true })
+        await waitFor(() => !tab.loading && tab.url.startsWith('data:'))
+        ctx.setTabLayout(side)
+        reveal.show()
+        reveal.setHover(true)
+        cursorAt(centerCursor())
+        await sleep(400)
+        const x = side === 'left' ? SIDEBAR_WIDTH + SHADOW_ROOM / 2 : SHADOW_ROOM / 2
+        for (const type of ['mouseDown', 'mouseUp'] as const) ui.sendInputEvent({ type, x, y: 300, button: 'left', clickCount: 1 })
+        const clicked = await waitFor((): Promise<number> => tab.wc.executeJavaScript('window.clicked || 0'), 3000).catch(() => 0)
+        await sleep(300)
+        const hidden = !ctx.bar.visible && !uiWin.isVisible()
+        tabs.close(tab.id)
+        tabs.activate(t1.id)
+        return { pass: clicked === 1 && hidden, detail: JSON.stringify({ clicked, hidden }) }
+      } finally {
+        await resetLayout()
+      }
+    })
+
+    await check(`sidebar ${side}: pin keeps it up over an unchanged page; unpin and switching to Top restore the top bar`, async () => {
+      try {
+        ctx.setTabLayout(side)
+        reveal.setPinned(true)
+        await sleep(300)
+        const up = ctx.bar.visible && ctx.bar.pinned && ctx.getState().bar.pinned && uiWin.isVisible() && viewFills()
+        const item = Menu.getApplicationMenu()
+          ?.items.find((i) => i.label === 'View')
+          ?.submenu?.items.find((i) => i.label === 'Pin Tab Bar')
+        const checked = !!item?.checked
+        cursorAt(centerCursor())
+        await sleep(900)
+        const stays = uiWin.isVisible()
+        ctx.setTabLayout('top')
+        await sleep(300)
+        const top = overContent(52) && viewFills() && ctx.bar.pinned
+        reveal.setPinned(false)
+        await sleep(100)
+        const floatTop = ctx.bar.visible && uiWin.getBounds().height === 72 && uiWin.getBounds().width === content().width
+        const dom: boolean = await ui.executeJavaScript('document.documentElement.dataset.side === undefined')
+        const r = { up, checked, stays, top, floatTop, dom }
+        return { pass: Object.values(r).every(Boolean), detail: JSON.stringify(r) }
+      } finally {
+        await resetLayout()
+      }
+    })
+
+    await check(`sidebar ${side}: screenshots (revealed${side === 'left' ? ', pinned' : ''})`, async () => {
+      try {
+        ctx.setTabLayout(side)
+        cursorAt(edgeCursor(side))
+        await sleep(1400)
+        await proof(`sidebar-${side}-revealed`, side, false)
+        if (side === 'left') {
+          cursorAt(centerCursor())
+          reveal.setPinned(true)
+          await sleep(1000)
+          await proof('sidebar-left-pinned', side, true)
+        }
+        return { pass: true, detail: proofDir }
+      } finally {
+        await resetLayout()
+      }
+    })
+  }
+
+  await check('sidebar: switching layouts while visible, pinned or in the omnibox leaves no stale window', async () => {
+    try {
+      // Visible, unpinned: switching drops the window.
+      ctx.setTabLayout('left')
+      reveal.setHover(true)
+      reveal.show()
+      await sleep(300)
+      ctx.setTabLayout('right')
+      await sleep(300)
+      const dropped = !ctx.bar.visible && !uiWin.isVisible()
+      // Pinned: it follows to the new edge.
+      reveal.setPinned(true)
+      await sleep(300)
+      ctx.setTabLayout('left')
+      await sleep(300)
+      const pinnedLeft = sameRect(uiWin.getBounds(), sidebarRect('left', true)) && uiWin.isVisible()
+      ctx.setTabLayout('right')
+      await sleep(300)
+      const pinnedRight = sameRect(uiWin.getBounds(), sidebarRect('right', true)) && uiWin.isVisible()
+      reveal.setPinned(false)
+      reveal.setHover(false)
+      reveal.hide()
+      await sleep(400)
+      // Omnibox open: the window keeps covering the content, and closing it leaves the sidebar's own rect.
+      reveal.openOverlay('new', '')
+      await sleep(400)
+      ctx.setTabLayout('top')
+      await sleep(300)
+      const [, h = 0] = win.getContentSize()
+      const covers = overContent(h) && !!ctx.overlay
+      reveal.closeOverlay()
+      reveal.hide()
+      await sleep(500)
+      const closed = !uiWin.isVisible() && !ctx.overlay && !uiWin.isFocusable()
+      const r = { dropped, pinnedLeft, pinnedRight, covers, closed }
+      return { pass: Object.values(r).every(Boolean), detail: JSON.stringify(r) }
+    } finally {
+      await resetLayout()
+    }
   })
 
   await check('extension icons: shown with a button extension, hidden by the menu option, gone with none installed', async () => {

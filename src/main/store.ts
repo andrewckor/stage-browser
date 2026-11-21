@@ -1,9 +1,11 @@
 import { app, type Rectangle } from 'electron'
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { TAB_LAYOUTS, type TabLayout } from '../shared/contract'
 
 export interface Prefs {
   hideExtensionIcons: boolean
+  tabLayout: TabLayout
 }
 
 export interface SavedSession {
@@ -41,7 +43,12 @@ function writeJson(name: string, data: unknown): void {
   }
 }
 
-export const readPrefs = (): Prefs => ({ hideExtensionIcons: false, ...readJson<Partial<Prefs>>('prefs.json', {}) })
+export function readPrefs(): Prefs {
+  const saved = readJson<Partial<Prefs>>('prefs.json', {})
+  // A hand-edited or future value falls back to the top bar.
+  const tabLayout = TAB_LAYOUTS.find((l) => l === saved.tabLayout) ?? 'top'
+  return { hideExtensionIcons: false, ...saved, tabLayout }
+}
 export const writePrefs = (prefs: Prefs) => writeJson('prefs.json', prefs)
 export const readSession = (): Partial<SavedSession> => readJson<Partial<SavedSession>>('session.json', {})
 export const writeSession = (session: SavedSession) => writeJson('session.json', session)

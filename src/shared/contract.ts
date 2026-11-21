@@ -23,6 +23,11 @@ export interface OmniboxOverlay {
 
 export type Overlay = OmniboxOverlay
 
+// Where the tab bar sits: a capsule across the top, or a vertical sidebar on one side.
+export type TabLayout = 'top' | 'left' | 'right'
+
+export const TAB_LAYOUTS: readonly TabLayout[] = ['top', 'left', 'right']
+
 export interface BarState {
   visible: boolean
   pinned: boolean
@@ -39,6 +44,8 @@ export interface StageState {
   extensionActions: number
   overlay: Overlay | null
   barHeight: number
+  tabLayout: TabLayout
+  sidebarWidth: number
   fullscreen: boolean
 }
 

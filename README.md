@@ -53,6 +53,7 @@ Each address becomes a tab. `--size` fixes the window at 16:9, so nothing reflow
 ## Small on purpose.
 
 - **Hidden tabs.** The tab capsule floats over the page and hides when you're done with it. <kbd>⇧⌘B</kbd> pins it open.
+- **Tabs on the side.** **View → Tabs on Left** or **Tabs on Right** moves them into a vertical sidebar that reveals when you touch that edge. **Tabs on Top** brings the capsule back.
 - **Extensions.** Add the ones you use from the Chrome Web Store, with **Extensions → Add Extension from This Page**. Their icons sit in the tab bar.
 - **Terminal start.** `stage <url>` opens the page and hands your prompt back. Run it again and the page joins the open window. No app bundle to sign.
 - **Share sizes.** Window presets at 1280×720, 1440×900, 1600×900 and 1920×1080. Zoom with <kbd>⌘=</kbd> and <kbd>⌘-</kbd> so the back row can read.
@@ -83,7 +84,7 @@ If Stage is already running, `stage <url>` opens the URL as a tab in the running
 | <kbd>⌘[</kbd> / <kbd>⌘]</kbd> | Back / forward |
 | <kbd>⌘R</kbd> / <kbd>⇧⌘R</kbd> | Reload / hard reload |
 | <kbd>⌘=</kbd> / <kbd>⌘-</kbd> / <kbd>⌘0</kbd> | Zoom in / out / reset |
-| <kbd>⇧⌘B</kbd> | Pin or unpin the tab bar |
+| <kbd>⇧⌘B</kbd> | Pin or unpin the tab bar (or sidebar) |
 | <kbd>⌃⌘F</kbd> | Full screen |
 | <kbd>⇧⌘O</kbd> | Open the page in Google Chrome |
 | <kbd>⌥⌘I</kbd> | Developer tools |

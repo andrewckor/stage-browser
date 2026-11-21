@@ -1,12 +1,14 @@
 import { BaseWindow, nativeTheme, screen, systemPreferences, type Rectangle } from 'electron'
-import type { WindowAction } from '../shared/contract'
+import type { TabLayout, WindowAction } from '../shared/contract'
 import type { Size } from './cli-args'
 
 export const BAR_HEIGHT = 52
+// The sidebar layout's strip: full height, this wide (8px gutters included).
+export const SIDEBAR_WIDTH = 248
 // Transparent room under the floating bar so the capsule's shadow isn't clipped. The UI window lets
 // the mouse through to the page there. Not used when pinned: the bar then stays up all the time, so
 // it keeps to the strip.
-const SHADOW_ROOM = 20
+export const SHADOW_ROOM = 20
 const DRAG_TICK_MS = 8
 const DRAG_MAX_MS = 60_000
 const EMPTY: Rectangle = { x: 0, y: 0, width: 0, height: 0 }
@@ -51,9 +53,13 @@ export function tabBounds(win: BaseWindow): Rectangle {
 }
 
 // The UI window's bounds, relative to the page window's content area.
-export function uiBounds(win: BaseWindow, pinned: boolean, overlay: boolean): Rectangle {
+export function uiBounds(win: BaseWindow, layout: TabLayout, pinned: boolean, overlay: boolean): Rectangle {
   const [w = 0, h = 0] = win.getContentSize()
-  return { x: 0, y: 0, width: w, height: overlay ? h : pinned ? BAR_HEIGHT : BAR_HEIGHT + SHADOW_ROOM }
+  if (overlay) return { x: 0, y: 0, width: w, height: h }
+  if (layout === 'top') return { x: 0, y: 0, width: w, height: pinned ? BAR_HEIGHT : BAR_HEIGHT + SHADOW_ROOM }
+  // The shadow room is on the page side of the sidebar.
+  const width = Math.min(w, pinned ? SIDEBAR_WIDTH : SIDEBAR_WIDTH + SHADOW_ROOM)
+  return { x: layout === 'left' ? 0 : w - width, y: 0, width, height: h }
 }
 
 function toggleZoom(win: BaseWindow): void {
