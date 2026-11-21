@@ -1,7 +1,7 @@
 {
   "name": "stage-browser",
   "productName": "Stage",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A minimal Chromium browser for screen sharing: the page fills the window, tabs hide until you reach for them.",
   "main": "dist/main/main.js",
   "scripts": {
@@ -33,7 +33,7 @@
     "darwin"
   ],
   "engines": {
-    "node": ">=18"
+    "node": ">=22"
   },
   "keywords": [
     "browser",
@@ -56,5 +56,11 @@
     "@types/node": "^24.19.2",
     "oxlint": "^1.94.0",
     "typescript": "^7.0.2"
-  }
+  },
+  "overrides": {
+    "adm-zip": "^0.6.1"
+  },
+  "bundleDependencies": [
+    "electron-chrome-web-store"
+  ]
 }
