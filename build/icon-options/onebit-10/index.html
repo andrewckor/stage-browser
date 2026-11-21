@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Stage One-Bit Experiments</title><style>:root { --bg: #f4f5f7; --card: #fff; --ink: #111317; --muted: #646a77; --line: #e3e5ea; --red: #ff3b2f; color-scheme: light; }
+@media (prefers-color-scheme: dark) { :root { --bg: #0e0f12; --card: #17191e; --ink: #f2f3f5; --muted: #9aa0ad; --line: #272a31; color-scheme: dark; } }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+.wrap { max-width: 1320px; margin: 0 auto; padding: 48px max(20px, env(safe-area-inset-left)) 80px; }
+h1 { font: 800 clamp(32px, 5vw, 50px)/1.05 -apple-system, system-ui, sans-serif; letter-spacing: -.03em; margin: 0 0 12px; }
+h1 span { color: var(--red); }
+.lede { color: var(--muted); font-size: 17px; max-width: 72ch; margin: 0 0 28px; }
+.dock-wrap { border-radius: 22px; padding: 52px 16px 18px; margin-bottom: 14px; background: linear-gradient(135deg, #24324f, #5b3f6e 50%, #c8775a); position: relative; }
+.dock-wrap.light { background: linear-gradient(135deg, #dfe7f5, #f3e8f0 50%, #f6e3d8); margin-bottom: 32px; }
+.dock-wrap::before { content: attr(data-label); position: absolute; left: 22px; top: 18px; color: rgb(255 255 255 / .85); font: 600 13px/1 -apple-system, system-ui; }
+.dock-wrap.light::before { color: rgb(0 0 0 / .55); }
+.dock { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; width: fit-content; max-width: 100%; margin: 0 auto; padding: 10px 14px; border-radius: 22px; background: rgb(255 255 255 / .26); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgb(255 255 255 / .35); }
+.dock a { display: grid; justify-items: center; gap: 4px; text-decoration: none; color: #fff; font: 600 10px/1 -apple-system, system-ui; }
+.dock-wrap.light .dock a { color: #333; }
+.dock img { width: 56px; height: 56px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 18px; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 20px; padding: 16px; display: grid; gap: 12px; align-content: start; min-width: 0; }
+.card.ref { border-style: dashed; }
+.card header { display: flex; align-items: baseline; gap: 10px; }
+.num { font: 700 13px/1 ui-monospace, "SF Mono", Menlo, monospace; color: var(--red); background: color-mix(in srgb, var(--red) 12%, transparent); padding: 6px 8px; border-radius: 8px; }
+.card h2 { margin: 0; font-size: 18px; letter-spacing: -.01em; }
+.card p { margin: 0; color: var(--muted); font-size: 14.5px; }
+.big { display: grid; place-items: center; background: #2b2d33; border-radius: 14px; padding: 14px; }
+.big img { width: 100%; max-width: 230px; height: auto; }
+.sizes { display: grid; grid-template-columns: 1fr 1fr; border-radius: 12px; overflow: hidden; }
+.sz { display: flex; align-items: flex-end; justify-content: center; gap: 10px; padding: 12px 6px; }
+.sz.light { background: #f6f6f8; } .sz.dark { background: #16171b; }</style></head>
+<body><div class="wrap">
+  <h1>One-Bit, <span>with one interesting thing.</span></h1>
+  <p class="lede">Strict black and white, a simpler tab bar, and at most one red element. Your installed icon, your spotlight candidate and the original One-Bit come first, dashed. Under each: 64, 32 and 16 px on light and dark.</p>
+  <section class="dock-wrap " data-label="Dock preview, dark wallpaper"><nav class="dock"><a href="#icon-Installed"><img src="ref-installed.svg" alt="Installed now"><span>Inst</span></a><a href="#icon-Candidate"><img src="ref-candidate.svg" alt="Spotlight candidate"><span>Cand</span></a><a href="#icon-One-Bit"><img src="ref-one-bit.svg" alt="Original One-Bit"><span>One-</span></a><a href="#icon-1"><img src="01-minimal-pill.svg" alt="Minimal Pill"><span>1</span></a><a href="#icon-2"><img src="02-pixel-capsule.svg" alt="Pixel Capsule"><span>2</span></a><a href="#icon-3"><img src="03-red-sun.svg" alt="Red Sun"><span>3</span></a><a href="#icon-4"><img src="04-rec-tab.svg" alt="Rec Tab"><span>4</span></a><a href="#icon-5"><img src="05-pointer.svg" alt="Pointer"><span>5</span></a><a href="#icon-6"><img src="06-dithered-spotlight.svg" alt="Dithered Spotlight"><span>6</span></a><a href="#icon-7"><img src="07-paper.svg" alt="Paper"><span>7</span></a><a href="#icon-8"><img src="08-pinstripe.svg" alt="Pinstripe"><span>8</span></a><a href="#icon-9"><img src="09-red-sun-pixel.svg" alt="Red Sun, Pixel Capsule"><span>9</span></a><a href="#icon-10"><img src="10-chunky.svg" alt="Chunky"><span>10</span></a></nav></section>
+  <section class="dock-wrap light" data-label="Dock preview, light wallpaper"><nav class="dock"><a href="#icon-Installed"><img src="ref-installed.svg" alt="Installed now"><span>Inst</span></a><a href="#icon-Candidate"><img src="ref-candidate.svg" alt="Spotlight candidate"><span>Cand</span></a><a href="#icon-One-Bit"><img src="ref-one-bit.svg" alt="Original One-Bit"><span>One-</span></a><a href="#icon-1"><img src="01-minimal-pill.svg" alt="Minimal Pill"><span>1</span></a><a href="#icon-2"><img src="02-pixel-capsule.svg" alt="Pixel Capsule"><span>2</span></a><a href="#icon-3"><img src="03-red-sun.svg" alt="Red Sun"><span>3</span></a><a href="#icon-4"><img src="04-rec-tab.svg" alt="Rec Tab"><span>4</span></a><a href="#icon-5"><img src="05-pointer.svg" alt="Pointer"><span>5</span></a><a href="#icon-6"><img src="06-dithered-spotlight.svg" alt="Dithered Spotlight"><span>6</span></a><a href="#icon-7"><img src="07-paper.svg" alt="Paper"><span>7</span></a><a href="#icon-8"><img src="08-pinstripe.svg" alt="Pinstripe"><span>8</span></a><a href="#icon-9"><img src="09-red-sun-pixel.svg" alt="Red Sun, Pixel Capsule"><span>9</span></a><a href="#icon-10"><img src="10-chunky.svg" alt="Chunky"><span>10</span></a></nav></section>
+  <section class="grid"><article class="card ref" id="icon-Installed">
+  <header><span class="num">Installed</span><h2>Installed now</h2></header>
+  <div class="big"><img src="ref-installed.svg" alt="Installed now icon"></div>
+  <p>What Stage uses today.</p>
+  <div class="sizes"><div class="sz light"><img src="ref-installed.svg" alt="" width="64"><img src="ref-installed.svg" alt="" width="32"><img src="ref-installed.svg" alt="" width="16"></div><div class="sz dark"><img src="ref-installed.svg" alt="" width="64"><img src="ref-installed.svg" alt="" width="32"><img src="ref-installed.svg" alt="" width="16"></div></div>
+</article>
+<article class="card ref" id="icon-Candidate">
+  <header><span class="num">Candidate</span><h2>Spotlight candidate</h2></header>
+  <div class="big"><img src="ref-candidate.svg" alt="Spotlight candidate icon"></div>
+  <p>The spotlight version you picked, not installed.</p>
+  <div class="sizes"><div class="sz light"><img src="ref-candidate.svg" alt="" width="64"><img src="ref-candidate.svg" alt="" width="32"><img src="ref-candidate.svg" alt="" width="16"></div><div class="sz dark"><img src="ref-candidate.svg" alt="" width="64"><img src="ref-candidate.svg" alt="" width="32"><img src="ref-candidate.svg" alt="" width="16"></div></div>
+</article>
+<article class="card ref" id="icon-One-Bit">
+  <header><span class="num">One-Bit</span><h2>Original One-Bit</h2></header>
+  <div class="big"><img src="ref-one-bit.svg" alt="Original One-Bit icon"></div>
+  <p>The one you liked last round.</p>
+  <div class="sizes"><div class="sz light"><img src="ref-one-bit.svg" alt="" width="64"><img src="ref-one-bit.svg" alt="" width="32"><img src="ref-one-bit.svg" alt="" width="16"></div><div class="sz dark"><img src="ref-one-bit.svg" alt="" width="64"><img src="ref-one-bit.svg" alt="" width="32"><img src="ref-one-bit.svg" alt="" width="16"></div></div>
+</article>
+<article class="card" id="icon-1">
+  <header><span class="num">01</span><h2>Minimal Pill</h2></header>
+  <div class="big"><img src="01-minimal-pill.svg" alt="Minimal Pill icon"></div>
+  <p>One-Bit with the tab bar reduced to a flat pill: one mark for the active tab, two dots for the rest.</p>
+  <div class="sizes"><div class="sz light"><img src="01-minimal-pill.svg" alt="" width="64"><img src="01-minimal-pill.svg" alt="" width="32"><img src="01-minimal-pill.svg" alt="" width="16"></div><div class="sz dark"><img src="01-minimal-pill.svg" alt="" width="64"><img src="01-minimal-pill.svg" alt="" width="32"><img src="01-minimal-pill.svg" alt="" width="16"></div></div>
+</article>
+<article class="card" id="icon-2">
+  <header><span class="num">02</span><h2>Pixel Capsule</h2></header>
+  <div class="big"><img src="02-pixel-capsule.svg" alt="Pixel Capsule icon"></div>
+  <p>The tab bar drawn in the same pixels as the picture, so the whole icon is one-bit.</p>
+  <div class="sizes"><div class="sz light"><img src="02-pixel-capsule.svg" alt="" width="64"><img src="02-pixel-capsule.svg" alt="" width="32"><img src="02-pixel-capsule.svg" alt="" width="16"></div><div class="sz dark"><img src="02-pixel-capsule.svg" alt="" width="64"><img src="02-pixel-capsule.svg" alt="" width="32"><img src="02-pixel-capsule.svg" alt="" width="16"></div></div>
+</article>
+<article class="card" id="icon-3">
+  <header><span class="num">03</span><h2>Red Sun</h2></header>
+  <div class="big"><img src="03-red-sun.svg" alt="Red Sun icon"></div>
+  <p>The sun becomes a solid red record button, the only colour in the picture. Light and "live" in one shape.</p>
+  <div class="sizes"><div class="sz light"><img src="03-red-sun.svg" alt="" width="64"><img src="03-red-sun.svg" alt="" width="32"><img src="03-red-sun.svg" alt="" width="16"></div><div class="sz dark"><img src="03-red-sun.svg" alt="" width="64"><img src="03-red-sun.svg" alt="" width="32"><img src="03-red-sun.svg" alt="" width="16"></div></div>
+</article>
+<article class="card" id="icon-4">
+  <header><span class="num">04</span><h2>Rec Tab</h2></header>
+  <div class="big"><img src="04-rec-tab.svg" alt="Rec Tab icon"></div>
+  <p>A red record dot leads the active tab. The picture stays pure black and white.</p>
+  <div class="sizes"><div class="sz light"><img src="04-rec-tab.svg" alt="" width="64"><img src="04-rec-tab.svg" alt="" width="32"><img src="04-rec-tab.svg" alt="" width="16"></div><div class="sz dark"><img src="04-rec-tab.svg" alt="" width="64"><img src="04-rec-tab.svg" alt="" width="32"><img src="04-rec-tab.svg" alt="" width="16"></div></div>
+</article>
+<article class="card" id="icon-5">
+  <header><span class="num">05</span><h2>Pointer</h2></header>
+  <div class="big"><img src="05-pointer.svg" alt="Pointer icon"></div>
+  <p>A classic one-bit pointer reaching up to the tab bar: the gesture that reveals Stage’s tabs.</p>
+  <div class="sizes"><div class="sz light"><img src="05-pointer.svg" alt="" width="64"><img src="05-pointer.svg" alt="" width="32"><img src="05-pointer.svg" alt="" width="16"></div><div class="sz dark"><img src="05-pointer.svg" alt="" width="64"><img src="05-pointer.svg" alt="" width="32"><img src="05-pointer.svg" alt="" width="16"></div></div>
+</article>
+<article class="card" id="icon-6">
+  <header><span class="num">06</span><h2>Dithered Spotlight</h2></header>
+  <div class="big"><img src="06-dithered-spotlight.svg" alt="Dithered Spotlight icon"></div>
+  <p>The spotlight, rebuilt in one-bit dithering: a cone of pixels onto a dithered floor.</p>
+  <div class="sizes"><div class="sz light"><img src="06-dithered-spotlight.svg" alt="" width="64"><img src="06-dithered-spotlight.svg" alt="" width="32"><img src="06-dithered-spotlight.svg" alt="" width="16"></div><div class="sz dark"><img src="06-dithered-spotlight.svg" alt="" width="64"><img src="06-dithered-spotlight.svg" alt="" width="32"><img src="06-dithered-spotlight.svg" alt="" width="16"></div></div>
+</article>
+<article class="card" id="icon-7">
+  <header><span class="num">07</span><h2>Paper</h2></header>
+  <div class="big"><img src="07-paper.svg" alt="Paper icon"></div>
+  <p>One-Bit inverted: a white page with black dithering and a black tab bar.</p>
+  <div class="sizes"><div class="sz light"><img src="07-paper.svg" alt="" width="64"><img src="07-paper.svg" alt="" width="32"><img src="07-paper.svg" alt="" width="16"></div><div class="sz dark"><img src="07-paper.svg" alt="" width="64"><img src="07-paper.svg" alt="" width="32"><img src="07-paper.svg" alt="" width="16"></div></div>
+</article>
+<article class="card" id="icon-8">
+  <header><span class="num">08</span><h2>Pinstripe</h2></header>
+  <div class="big"><img src="08-pinstripe.svg" alt="Pinstripe icon"></div>
+  <p>The tab bar as a classic Mac title bar: pinstripes, a close box, the active tab in the clear middle.</p>
+  <div class="sizes"><div class="sz light"><img src="08-pinstripe.svg" alt="" width="64"><img src="08-pinstripe.svg" alt="" width="32"><img src="08-pinstripe.svg" alt="" width="16"></div><div class="sz dark"><img src="08-pinstripe.svg" alt="" width="64"><img src="08-pinstripe.svg" alt="" width="32"><img src="08-pinstripe.svg" alt="" width="16"></div></div>
+</article>
+<article class="card" id="icon-9">
+  <header><span class="num">09</span><h2>Red Sun, Pixel Capsule</h2></header>
+  <div class="big"><img src="09-red-sun-pixel.svg" alt="Red Sun, Pixel Capsule icon"></div>
+  <p>The red-sun record button with the pixel-drawn tab bar. Everything on one grid.</p>
+  <div class="sizes"><div class="sz light"><img src="09-red-sun-pixel.svg" alt="" width="64"><img src="09-red-sun-pixel.svg" alt="" width="32"><img src="09-red-sun-pixel.svg" alt="" width="16"></div><div class="sz dark"><img src="09-red-sun-pixel.svg" alt="" width="64"><img src="09-red-sun-pixel.svg" alt="" width="32"><img src="09-red-sun-pixel.svg" alt="" width="16"></div></div>
+</article>
+<article class="card" id="icon-10">
+  <header><span class="num">10</span><h2>Chunky</h2></header>
+  <div class="big"><img src="10-chunky.svg" alt="Chunky icon"></div>
+  <p>Bigger pixels and the red sun: bolder, and clearer at Dock size.</p>
+  <div class="sizes"><div class="sz light"><img src="10-chunky.svg" alt="" width="64"><img src="10-chunky.svg" alt="" width="32"><img src="10-chunky.svg" alt="" width="16"></div><div class="sz dark"><img src="10-chunky.svg" alt="" width="64"><img src="10-chunky.svg" alt="" width="32"><img src="10-chunky.svg" alt="" width="16"></div></div>
+</article></section>
+</div></body></html>

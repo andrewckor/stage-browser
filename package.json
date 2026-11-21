@@ -1,0 +1,51 @@
+{
+  "name": "stage-browser",
+  "productName": "Stage",
+  "version": "0.1.0",
+  "description": "A minimal Chromium browser for screen sharing: the page fills the window, tabs hide until you reach for them.",
+  "main": "src/main/main.js",
+  "scripts": {
+    "start": "electron .",
+    "selftest": "STAGE_SELFTEST=1 electron .",
+    "ui:preview": "node scripts/ui-preview.js",
+    "cli:install": "sh scripts/install-cli.sh"
+  },
+  "dependencies": {
+    "electron": "^45.4.1",
+    "electron-chrome-extensions": "^4.10.0",
+    "electron-chrome-web-store": "^0.13.0"
+  },
+  "bin": {
+    "stage": "bin/stage.js"
+  },
+  "files": [
+    "bin/",
+    "src/",
+    "build/icon.png",
+    "build/icon.icns",
+    "README.md"
+  ],
+  "os": [
+    "darwin"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "browser",
+    "electron",
+    "chromium",
+    "screen-sharing",
+    "presentation",
+    "demo"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/andrewckor/stage-browser.git"
+  },
+  "homepage": "https://github.com/andrewckor/stage-browser#readme",
+  "bugs": {
+    "url": "https://github.com/andrewckor/stage-browser/issues"
+  }
+}

@@ -1,0 +1,410 @@
+/* Stage UI: tab capsule + omnibox. System fonts, no assets, 4px grid.
+   Theme: tokens use light-dark(); `color-scheme` lives on <body> (not <html>) so the
+   transparent view never gets an opaque canvas. [data-theme] on <html> forces a theme. */
+
+:root {
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, monospace;
+
+  --surface: light-dark(rgb(247 247 248 / .94), rgb(29 29 32 / .94));
+  --panel: light-dark(rgb(250 250 251 / .98), rgb(30 30 33 / .98));
+  --border: light-dark(rgb(0 0 0 / .11), rgb(255 255 255 / .11));
+  --edge: light-dark(rgb(0 0 0 / .05), rgb(0 0 0 / .55));
+  --highlight: light-dark(rgb(255 255 255 / .9), rgb(255 255 255 / .07));
+  --text: light-dark(#1d1d1f, #f5f5f7);
+  --muted: light-dark(rgb(60 60 67 / .64), rgb(235 235 245 / .58));
+  --faint: light-dark(rgb(60 60 67 / .36), rgb(235 235 245 / .32));
+  --hover: light-dark(rgb(0 0 0 / .055), rgb(255 255 255 / .075));
+  --press: light-dark(rgb(0 0 0 / .09), rgb(255 255 255 / .12));
+  --tab-active: light-dark(#fff, rgb(255 255 255 / .125));
+  --tab-ring: light-dark(rgb(0 0 0 / .07), rgb(255 255 255 / .07));
+  --shadow-c: light-dark(rgb(0 0 0 / .16), rgb(0 0 0 / .5));
+  --accent: light-dark(#0a74e6, #4da3ff);
+  --accent-soft: light-dark(rgb(10 116 230 / .12), rgb(77 163 255 / .18));
+  --kbd-bg: light-dark(rgb(0 0 0 / .06), rgb(255 255 255 / .1));
+
+  --ease-out: cubic-bezier(.2, .8, .2, 1);
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: transparent;
+  overflow: hidden;
+}
+
+body {
+  color-scheme: light dark;
+  font: 400 13px/16px var(--font);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  -webkit-user-select: none;
+  user-select: none;
+  cursor: default;
+}
+:root[data-theme="light"] body { color-scheme: light; }
+:root[data-theme="dark"] body { color-scheme: dark; }
+
+button { font: inherit; color: inherit; border: 0; background: none; padding: 0; margin: 0; cursor: default; }
+svg { display: block; flex: none; }
+::selection { background: var(--accent-soft); }
+#omni-input::selection { background: color-mix(in srgb, var(--accent) 35%, transparent); }
+
+:focus { outline: none; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+/* ---------- strip + capsule ---------- */
+
+#strip {
+  position: fixed;
+  inset: 0 0 auto 0;
+  height: 52px;
+  padding: 8px 12px 8px 84px;      /* 84px reserved for the traffic lights */
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  -webkit-app-region: drag;
+  pointer-events: none;
+}
+
+#capsule {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 36px;
+  max-width: 100%;
+  min-width: 0;
+  padding: 4px;
+  border-radius: 12px;
+  background: var(--surface);
+  border: .5px solid var(--border);
+  box-shadow:
+    inset 0 .5px 0 var(--highlight),
+    0 0 0 .5px var(--edge),
+    0 1px 2px rgb(0 0 0 / .08),
+    0 4px 10px -2px var(--shadow-c),
+    0 10px 24px -10px var(--shadow-c);  /* reaches ~24px below; main gives the view 20px under the strip */
+  -webkit-app-region: drag;
+
+  /* exit: quick and quiet */
+  opacity: 0;
+  transform: translateY(-10px);
+  pointer-events: none;
+  transition: opacity 120ms ease-in, transform 120ms ease-in;
+  will-change: opacity, transform;
+}
+/* Pinned: the page starts right under the strip, so the view can't grow; keep the shadow inside 8px. */
+.bar-pinned #capsule {
+  box-shadow:
+    inset 0 .5px 0 var(--highlight),
+    0 0 0 .5px var(--edge),
+    0 1px 2px rgb(0 0 0 / .08),
+    0 2px 6px -1px var(--shadow-c);
+}
+.bar-visible #capsule {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+  transition: opacity 160ms var(--ease-out), transform 160ms var(--ease-out);
+}
+
+/* every interactive thing opts out of dragging */
+#tabs, #new-tab, browser-action-list, .tab { -webkit-app-region: no-drag; }
+
+#tabs {
+  position: relative;
+  display: flex;
+  gap: 2px;
+  /* A scroll container clips its children's shadows, so it gets 6px/4px of inner room,
+     cancelled by negative margins so the layout doesn't move. */
+  height: 40px;
+  padding: 6px 4px;
+  margin: -6px -4px;
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  overscroll-behavior: contain;
+}
+#tabs::-webkit-scrollbar { display: none; }
+#tabs.fade-l { -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 20px); mask-image: linear-gradient(90deg, transparent 0, #000 20px); }
+#tabs.fade-r { -webkit-mask-image: linear-gradient(270deg, transparent 0, #000 20px); mask-image: linear-gradient(270deg, transparent 0, #000 20px); }
+#tabs.fade-l.fade-r { -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 20px, #000 calc(100% - 20px), transparent 100%); mask-image: linear-gradient(90deg, transparent 0, #000 20px, #000 calc(100% - 20px), transparent 100%); }
+
+/* ---------- tabs ---------- */
+
+.tab {
+  --reserve: 0px;                 /* space under the close button / audio glyph the title fades out before */
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 1 200px;
+  min-width: 72px;
+  height: 28px;
+  padding: 0 8px;
+  border-radius: 8px;
+  color: var(--muted);
+  background: transparent;
+  box-shadow: 0 0 0 .5px transparent;
+  transition: background-color 140ms ease, color 140ms ease, box-shadow 140ms ease, transform 180ms var(--ease-out);
+}
+.tab:hover { background: var(--hover); color: var(--text); }
+.tab.active {
+  color: var(--text);
+  background: var(--tab-active);
+  box-shadow: 0 0 0 .5px var(--tab-ring), 0 1px 1px rgb(0 0 0 / .05), 0 1px 4px var(--shadow-c);
+}
+.tab.has-aud { --reserve: 20px; }
+.tab:hover, .tab.active { --reserve: 24px; }
+.tab.has-aud:hover, .tab.has-aud.active { --reserve: 44px; }
+
+.tab.entering { animation: tab-in 180ms var(--ease-out) both; }
+.tab.closing {
+  animation: tab-out 160ms var(--ease-out) both;
+  pointer-events: none;
+}
+@keyframes tab-in {
+  from { flex-basis: 0px; min-width: 0px; padding-left: 0; padding-right: 0; opacity: 0; }
+}
+@keyframes tab-out {
+  to { flex-basis: 0px; min-width: 0px; padding-left: 0; padding-right: 0; opacity: 0; }
+}
+
+.tab.dragging {
+  z-index: 2;
+  transition: background-color 140ms ease, color 140ms ease, box-shadow 140ms ease;
+  background: var(--tab-active);
+  color: var(--text);
+  box-shadow: 0 0 0 .5px var(--tab-ring), 0 2px 4px rgb(0 0 0 / .12), 0 1px 6px -1px var(--shadow-c);  /* stays inside #tabs' 6px room */
+}
+#tabs.no-anim .tab { transition: none; }
+
+/* favicon / spinner / monogram share one 16px slot */
+.ico { position: relative; flex: none; width: 16px; height: 16px; }
+.ico > * { position: absolute; inset: 0; display: none; }
+.ico[data-k="img"] .fav,
+.ico[data-k="mono"] .mono,
+.ico[data-k="spin"] .spin,
+.ico[data-k="blank"] .blank { display: block; }
+
+.fav { width: 16px; height: 16px; border-radius: 4px; object-fit: contain; -webkit-user-drag: none; }
+.mono {
+  --h: 220;
+  border-radius: 5px;
+  font: 600 10px/16px var(--font);
+  text-align: center;
+  text-transform: uppercase;
+  color: light-dark(hsl(var(--h) 62% 36%), hsl(var(--h) 80% 76%));
+  background: light-dark(hsl(var(--h) 70% 50% / .16), hsl(var(--h) 70% 60% / .22));
+}
+.blank { color: var(--faint); }
+.blank svg { width: 16px; height: 16px; }
+
+.spin {
+  inset: 1px;
+  border-radius: 50%;
+  border: 1.5px solid var(--faint);
+  border-top-color: var(--accent);
+  animation: spin 760ms linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.title {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  font-weight: 500;
+  letter-spacing: -.003em;
+  -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - var(--reserve) - 14px), transparent calc(100% - var(--reserve)));
+  mask-image: linear-gradient(90deg, #000 calc(100% - var(--reserve) - 14px), transparent calc(100% - var(--reserve)));
+}
+
+.aud {
+  position: absolute;
+  right: 8px;
+  top: 7px;
+  width: 14px;
+  height: 14px;
+  display: none;
+  color: var(--muted);
+  transition: right 140ms var(--ease-out);
+}
+.has-aud .aud { display: block; }
+.tab:hover .aud, .tab.active .aud { right: 28px; }
+.aud .off { display: none; }
+.aud.is-muted .on { display: none; }
+.aud.is-muted .off { display: block; }
+
+.close {
+  position: absolute;
+  right: 4px;
+  top: 4px;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease, background-color 120ms ease, color 120ms ease;
+  -webkit-app-region: no-drag;
+}
+.tab:hover .close, .tab.active .close, .close:focus-visible { opacity: 1; pointer-events: auto; }
+.close:hover { background: var(--press); color: var(--text); }
+
+/* compact: many tabs → favicon-only, the active tab keeps its title */
+#tabs.compact .tab { flex: 0 0 36px; min-width: 36px; padding: 0; justify-content: center; }
+#tabs.compact .tab.active { flex: 0 0 120px; min-width: 120px; padding: 0 8px; justify-content: flex-start; }
+#tabs.compact .tab:not(.active) .title,
+#tabs.compact .tab:not(.active) .aud { display: none; }
+#tabs.compact .tab:not(.active) .close { right: 8px; top: 4px; width: 20px; left: auto; background: var(--hover); backdrop-filter: none; }
+#tabs.compact .tab:not(.active):hover .ico { opacity: 0; }
+#tabs.compact .tab:not(.active) .close { inset: 4px 8px; width: 20px; }
+#tabs.compact .tab.entering { animation-name: tab-in-c; }
+#tabs.compact .tab.closing { animation-name: tab-out; }
+@keyframes tab-in-c { from { flex-basis: 0px; min-width: 0px; opacity: 0; } }
+
+/* ---------- trailing controls ---------- */
+
+#controls { display: flex; align-items: center; gap: 2px; flex: none; }
+/* Extensions menu → Hide Icons in Tab Bar. The extensions keep running; only their buttons go. */
+.hide-ext #controls, .no-ext #controls { display: none; }
+.divider { width: 1px; height: 16px; margin: 0 4px 0 2px; background: var(--border); border-radius: 1px; }
+
+.icon-btn {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  transition: background-color 120ms ease, color 120ms ease;
+}
+.icon-btn:hover { background: var(--hover); color: var(--text); }
+.icon-btn:active { background: var(--press); }
+
+browser-action-list { display: flex; align-items: center; height: 28px; }
+browser-action-list::part(action) {
+  width: 24px;
+  height: 24px;
+  margin: 0 2px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background-color: transparent;
+}
+browser-action-list::part(action):hover { background-color: var(--hover); }
+browser-action-list::part(action):active { background-color: var(--press); }
+browser-action-list::part(badge) { font: 600 9px/12px var(--font); }
+
+/* ---------- omnibox ---------- */
+
+#omni { position: fixed; inset: 0; z-index: 10; }
+#omni[hidden] { display: none; }
+
+#omni-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgb(0 0 0 / .2);
+  animation: fade-in 140ms ease-out both;
+}
+@keyframes fade-in { from { opacity: 0; } }
+
+#omni-panel {
+  position: absolute;
+  top: 18vh;
+  left: 50%;
+  width: min(640px, calc(100vw - 48px));
+  transform: translateX(-50%);
+  border-radius: 14px;
+  background: var(--panel);
+  border: .5px solid var(--border);
+  box-shadow:
+    inset 0 .5px 0 var(--highlight),
+    0 0 0 .5px var(--edge),
+    0 2px 6px rgb(0 0 0 / .12),
+    0 24px 64px rgb(0 0 0 / .32);
+  overflow: hidden;
+  animation: panel-in 160ms var(--ease-out) both;
+}
+@keyframes panel-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(-8px) scale(.985); }
+}
+
+#omni-field { display: flex; align-items: center; gap: 12px; height: 52px; padding: 0 16px; }
+#omni-glyph { width: 20px; height: 20px; color: var(--muted); display: grid; place-items: center; }
+#omni-glyph svg { width: 20px; height: 20px; }
+#omni-input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text);
+  font: 400 18px/24px var(--font);
+  letter-spacing: -.012em;
+  caret-color: var(--accent);
+  -webkit-user-select: text;
+  user-select: text;
+}
+#omni-input::placeholder { color: var(--faint); }
+
+#omni-list {
+  max-height: calc(100vh - 18vh - 52px - 24px);
+  overflow-y: auto;
+  padding: 0 6px 6px;
+  scrollbar-width: thin;
+}
+#omni-list:not(:empty) { border-top: .5px solid var(--border); padding-top: 6px; }
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 40px;
+  padding: 0 12px;
+  border-radius: 8px;
+}
+.row.sel { background: var(--hover); }
+.row .r-ico { width: 20px; height: 20px; display: grid; place-items: center; color: var(--muted); flex: none; }
+.row .r-ico img { width: 16px; height: 16px; border-radius: 4px; }
+.row .r-ico svg { width: 16px; height: 16px; }
+.row.sel .r-ico { color: var(--text); }
+.row .r-title { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; line-height: 20px; }
+.row .r-url { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; color: var(--muted); }
+.row .r-url:empty { display: none; }
+.row .r-title:only-of-type { flex: 1; }
+.row .hint { display: none; align-items: center; gap: 6px; flex: none; color: var(--muted); font-size: 12px; margin-left: auto; }
+.row.sel .hint { display: flex; }
+kbd {
+  font: 500 11px/18px var(--font);
+  min-width: 20px;
+  padding: 0 5px;
+  text-align: center;
+  border-radius: 5px;
+  color: var(--muted);
+  background: var(--kbd-bg);
+}
+.hint .h-cmd { display: none; align-items: center; gap: 6px; }
+.hint .h-ret { display: flex; align-items: center; gap: 6px; }
+#omni.cmd .row:not(.is-tab) .h-cmd { display: flex; }
+#omni.cmd .row:not(.is-tab) .h-ret { display: none; }
+
+/* ---------- reduced motion ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+  #capsule, .bar-visible #capsule { transform: none; transition: opacity 80ms linear; }
+  .tab, .tab.dragging { transition: background-color 80ms linear, color 80ms linear, box-shadow 80ms linear; }
+  .tab.entering, .tab.closing, #omni-backdrop, #omni-panel { animation-duration: 1ms; }
+  #omni-panel { animation-name: fade-in; }
+  .aud, .close { transition: none; }
+  .spin { animation-duration: 1.6s; }
+}

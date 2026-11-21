@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>New Tab</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: light-dark(#f6f6f7, #131316);
+      --glow: light-dark(rgb(255 255 255 / .9), rgb(255 255 255 / .06));
+      --text: light-dark(#1d1d1f, #f5f5f7);
+      --muted: light-dark(rgb(60 60 67 / .6), rgb(235 235 245 / .5));
+      --kbd-bg: light-dark(rgb(0 0 0 / .05), rgb(255 255 255 / .08));
+      --kbd-line: light-dark(rgb(0 0 0 / .09), rgb(255 255 255 / .1));
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body {
+      display: grid;
+      place-items: center;
+      background:
+        radial-gradient(ellipse 60% 50% at 50% 38%, var(--glow), transparent 70%),
+        var(--bg);
+      color: var(--text);
+      font: 400 14px/20px -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -webkit-user-select: none;
+      user-select: none;
+      cursor: default;
+    }
+    main { display: grid; justify-items: center; gap: 24px; transform: translateY(-4vh); animation: in 600ms cubic-bezier(.2,.8,.2,1) both; }
+    .mark { width: 40px; height: 40px; }
+    h1 { margin: 0; font: 600 15px/20px inherit; font-family: inherit; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+    ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; justify-items: center; color: var(--muted); }
+    li { display: flex; align-items: center; gap: 8px; }
+    kbd {
+      font: 500 12px/20px inherit; font-family: inherit;
+      min-width: 24px; padding: 0 6px; text-align: center;
+      border-radius: 6px; background: var(--kbd-bg); box-shadow: inset 0 0 0 .5px var(--kbd-line);
+      color: var(--text);
+    }
+    @keyframes in { from { opacity: 0; transform: translateY(calc(-4vh + 6px)); } }
+    @media (prefers-reduced-motion: reduce) { main { animation: none; } }
+  </style>
+</head>
+<body>
+  <main>
+    <svg class="mark" viewBox="0 0 40 40" aria-hidden="true">
+      <defs>
+        <linearGradient id="beam" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="currentColor" stop-opacity=".0"/>
+          <stop offset="1" stop-color="currentColor" stop-opacity=".16"/>
+        </linearGradient>
+      </defs>
+      <g style="color: var(--text)">
+        <path d="M17 2h6l9 22H8z" fill="url(#beam)"/>
+        <rect x="6" y="24" width="28" height="12" rx="4" fill="none" stroke="currentColor" stroke-opacity=".7" stroke-width="2"/>
+      </g>
+    </svg>
+    <h1>Stage</h1>
+    <ul>
+      <li><kbd>⌘L</kbd> open a page</li>
+      <li>move to the top edge for tabs</li>
+    </ul>
+  </main>
+</body>
+</html>

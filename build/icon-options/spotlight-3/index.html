@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stage Spotlight Round 3</title>
+<style>
+:root { --bg: #f4f5f7; --card: #fff; --ink: #111317; --muted: #646a77; --line: #e3e5ea; --gold: #c98500; color-scheme: light; }
+@media (prefers-color-scheme: dark) { :root { --bg: #0e0f12; --card: #17191e; --ink: #f2f3f5; --muted: #9aa0ad; --line: #272a31; --gold: #ffc457; color-scheme: dark; } }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+.wrap { max-width: 1280px; margin: 0 auto; padding: 48px max(20px, env(safe-area-inset-left)) 80px; }
+h1 { font: 800 clamp(32px, 5vw, 50px)/1.05 -apple-system, system-ui, sans-serif; letter-spacing: -.03em; margin: 0 0 12px; }
+h1 span { color: var(--gold); }
+.lede { color: var(--muted); font-size: 17px; max-width: 66ch; margin: 0 0 28px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 20px; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 20px; padding: 18px; display: grid; gap: 14px; min-width: 0; align-content: start; }
+.card.ref { border-style: dashed; opacity: .9; }
+.card header { display: flex; align-items: baseline; gap: 10px; }
+.num { font: 700 13px/1 ui-monospace, "SF Mono", Menlo, monospace; color: var(--gold); background: color-mix(in srgb, var(--gold) 14%, transparent); padding: 6px 8px; border-radius: 8px; white-space: nowrap; }
+.card h2 { margin: 0; font-size: 19px; letter-spacing: -.01em; }
+.card p { margin: 0; color: var(--muted); }
+.big { display: grid; place-items: center; background: #2b2d33; border-radius: 14px; padding: 16px; }
+.big img { width: 100%; max-width: 256px; height: auto; }
+.pair { display: grid; grid-template-columns: 1fr 1fr; border-radius: 12px; overflow: hidden; }
+.tile { display: grid; place-items: center; padding: 12px; }
+.tile img { width: 100%; max-width: 110px; height: auto; }
+.tile.light { background: #f6f6f8; }
+.tile.dark { background: #16171b; }
+.sizes { display: flex; align-items: flex-end; gap: 12px; border-top: 1px solid var(--line); padding-top: 14px; }
+.sizes span { margin-left: auto; color: var(--muted); font: 12px/1 ui-monospace, "SF Mono", Menlo, monospace; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Spotlight, <span>round three.</span></h1>
+  <p class="lede">From round two's D: the beam is crisp from the top down to the window, diffuses only once it's behind the window, and the haze fades away with no visible edge or beam end. 1 keeps round two D's colours and glow exactly; 2 has a little less glow. The last cards are for reference.</p>
+  <section class="grid"><article class="card" id="icon-1">
+  <header><span class="num">1</span><h2>D, crisp beam</h2></header>
+  <div class="big"><img src="1-d-crisp-beam.svg" alt="D, crisp beam icon"></div>
+  <div class="pair"><div class="tile light"><img src="1-d-crisp-beam.svg" alt=""></div><div class="tile dark"><img src="1-d-crisp-beam.svg" alt=""></div></div>
+  <p>Round two D’s colours and glow, unchanged. The beam stays crisp down to the window and its end never shows.</p>
+  <div class="sizes"><img src="1-d-crisp-beam.svg" alt="" width="64" height="64"><img src="1-d-crisp-beam.svg" alt="" width="32" height="32"><img src="1-d-crisp-beam.svg" alt="" width="16" height="16"><span>64 · 32 · 16</span></div>
+</article>
+<article class="card" id="icon-2">
+  <header><span class="num">2</span><h2>D, crisp beam, less glow</h2></header>
+  <div class="big"><img src="2-d-crisp-beam-less-glow.svg" alt="D, crisp beam, less glow icon"></div>
+  <div class="pair"><div class="tile light"><img src="2-d-crisp-beam-less-glow.svg" alt=""></div><div class="tile dark"><img src="2-d-crisp-beam-less-glow.svg" alt=""></div></div>
+  <p>The same, with a slightly smaller glow behind the window.</p>
+  <div class="sizes"><img src="2-d-crisp-beam-less-glow.svg" alt="" width="64" height="64"><img src="2-d-crisp-beam-less-glow.svg" alt="" width="32" height="32"><img src="2-d-crisp-beam-less-glow.svg" alt="" width="16" height="16"><span>64 · 32 · 16</span></div>
+</article>
+<article class="card ref" id="icon-Now">
+  <header><span class="num">Now</span><h2>Current</h2></header>
+  <div class="big"><img src="ref-current.svg" alt="Current icon"></div>
+  <div class="pair"><div class="tile light"><img src="ref-current.svg" alt=""></div><div class="tile dark"><img src="ref-current.svg" alt=""></div></div>
+  <p>What you have now.</p>
+  <div class="sizes"><img src="ref-current.svg" alt="" width="64" height="64"><img src="ref-current.svg" alt="" width="32" height="32"><img src="ref-current.svg" alt="" width="16" height="16"><span>64 · 32 · 16</span></div>
+</article>
+<article class="card ref" id="icon-Prev D">
+  <header><span class="num">Prev D</span><h2>Round 2 D</h2></header>
+  <div class="big"><img src="ref-previous-1.svg" alt="Round 2 D icon"></div>
+  <div class="pair"><div class="tile light"><img src="ref-previous-1.svg" alt=""></div><div class="tile dark"><img src="ref-previous-1.svg" alt=""></div></div>
+  <p>The version you liked, for comparison.</p>
+  <div class="sizes"><img src="ref-previous-1.svg" alt="" width="64" height="64"><img src="ref-previous-1.svg" alt="" width="32" height="32"><img src="ref-previous-1.svg" alt="" width="16" height="16"><span>64 · 32 · 16</span></div>
+</article></section>
+</div>
+</body>
+</html>

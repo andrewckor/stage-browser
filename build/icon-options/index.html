@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stage Icon Options</title>
+<style>
+:root { --bg: #f4f5f7; --card: #ffffff; --ink: #111317; --muted: #646a77; --line: #e3e5ea; --red: #ff3b2f; color-scheme: light; }
+@media (prefers-color-scheme: dark) { :root { --bg: #0e0f12; --card: #17191e; --ink: #f2f3f5; --muted: #9aa0ad; --line: #272a31; color-scheme: dark; } }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+.wrap { max-width: 1240px; margin: 0 auto; padding: 48px max(20px, env(safe-area-inset-left)) 80px; }
+h1 { font: 800 clamp(34px, 5vw, 56px)/1 -apple-system, system-ui, sans-serif; letter-spacing: -.03em; margin: 0 0 12px; }
+h1 span { color: var(--red); }
+.lede { color: var(--muted); font-size: 17px; max-width: 60ch; margin: 0 0 32px; }
+.dock-wrap { border-radius: 22px; padding: 56px 24px 22px; margin-bottom: 40px; background: linear-gradient(135deg, #3b5ba9, #7a4ea8 45%, #e2735c); position: relative; overflow: hidden; }
+.dock-wrap::before { content: "Dock preview"; position: absolute; left: 22px; top: 18px; color: rgb(255 255 255 / .85); font: 600 13px/1 -apple-system, system-ui; letter-spacing: .02em; }
+.dock { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; width: fit-content; max-width: 100%; margin: 0 auto; padding: 10px 14px; border-radius: 24px; background: rgb(255 255 255 / .28); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgb(255 255 255 / .35); }
+.dock a { display: grid; justify-items: center; gap: 4px; text-decoration: none; color: #fff; font: 600 11px/1 -apple-system, system-ui; }
+.dock img { width: 64px; height: 64px; transition: transform .15s ease; }
+.dock a:hover img { transform: translateY(-8px) scale(1.12); }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 20px; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 20px; padding: 18px; display: grid; gap: 14px; min-width: 0; }
+.card.current { border-style: dashed; }
+.card header { display: flex; align-items: baseline; gap: 10px; }
+.num { font: 700 13px/1 ui-monospace, "SF Mono", Menlo, monospace; color: var(--red); background: color-mix(in srgb, var(--red) 12%, transparent); padding: 6px 8px; border-radius: 8px; }
+.card h2 { margin: 0; font-size: 20px; letter-spacing: -.01em; }
+.card p { margin: 0; color: var(--muted); }
+.stage-pair { display: grid; grid-template-columns: 1fr 1fr; border-radius: 14px; overflow: hidden; }
+.tile { display: grid; place-items: center; padding: 18px 10px; }
+.tile img { width: 100%; max-width: 160px; height: auto; }
+.tile.light { background: #f6f6f8; }
+.tile.dark { background: #1c1d22; }
+.sizes { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; padding-top: 4px; border-top: 1px solid var(--line); padding-top: 14px; }
+.sizes img:first-child { width: 96px; height: 96px; }
+.sizes span { margin-left: auto; color: var(--muted); font: 12px/1 ui-monospace, "SF Mono", Menlo, monospace; }
+.foot { margin-top: 36px; color: var(--muted); }
+code { font: 13px ui-monospace, "SF Mono", Menlo, monospace; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Pick a <span>Stage</span> icon.</h1>
+  <p class="lede">Ten new directions, plus the current one for comparison. Each is shown large on light and dark, then at Dock and menu sizes. Tell me the number.</p>
+  <section class="dock-wrap" aria-label="All icons in a mock Dock">
+    <nav class="dock"><a href="#icon-0"><img src="00-current.svg" alt="Current"><span>Now</span></a><a href="#icon-1"><img src="01-tab-line.svg" alt="Tab Line"><span>1</span></a><a href="#icon-2"><img src="02-curtain-call.svg" alt="Curtain Call"><span>2</span></a><a href="#icon-3"><img src="03-on-air.svg" alt="On Air"><span>3</span></a><a href="#icon-4"><img src="04-peekaboo.svg" alt="Peekaboo"><span>4</span></a><a href="#icon-5"><img src="05-pop-s.svg" alt="Pop S"><span>5</span></a><a href="#icon-6"><img src="06-spotlight-floor.svg" alt="Spotlight"><span>6</span></a><a href="#icon-7"><img src="07-proscenium.svg" alt="Proscenium"><span>7</span></a><a href="#icon-8"><img src="08-viewfinder.svg" alt="Viewfinder"><span>8</span></a><a href="#icon-9"><img src="09-glass-capsule.svg" alt="Capsule"><span>9</span></a><a href="#icon-10"><img src="10-halftone-window.svg" alt="Halftone"><span>10</span></a></nav>
+  </section>
+  <section class="grid"><article class="card current" id="icon-0">
+  <header><span class="num">Now</span><h2>Current</h2></header>
+  <div class="stage-pair">
+    <div class="tile light"><img src="00-current.svg" alt="Current icon on a light background" width="200" height="200"></div>
+    <div class="tile dark"><img src="00-current.svg" alt="Current icon on a dark background" width="200" height="200"></div>
+  </div>
+  <p>The spotlight beam on a lit viewport you have now.</p>
+  <div class="sizes" aria-label="Small sizes">
+    <img src="00-current.svg" alt="" width="128" height="128"><img src="00-current.svg" alt="" width="64" height="64"><img src="00-current.svg" alt="" width="32" height="32"><img src="00-current.svg" alt="" width="16" height="16">
+    <span>128 · 64 · 32 · 16</span>
+  </div>
+</article>
+<article class="card" id="icon-1">
+  <header><span class="num">01</span><h2>Tab Line</h2></header>
+  <div class="stage-pair">
+    <div class="tile light"><img src="01-tab-line.svg" alt="Tab Line icon on a light background" width="200" height="200"></div>
+    <div class="tile dark"><img src="01-tab-line.svg" alt="Tab Line icon on a dark background" width="200" height="200"></div>
+  </div>
+  <p>A clean page on ink with the red line where your tabs wait.</p>
+  <div class="sizes" aria-label="Small sizes">
+    <img src="01-tab-line.svg" alt="" width="128" height="128"><img src="01-tab-line.svg" alt="" width="64" height="64"><img src="01-tab-line.svg" alt="" width="32" height="32"><img src="01-tab-line.svg" alt="" width="16" height="16">
+    <span>128 · 64 · 32 · 16</span>
+  </div>
+</article>
+<article class="card" id="icon-2">
+  <header><span class="num">02</span><h2>Curtain Call</h2></header>
+  <div class="stage-pair">
+    <div class="tile light"><img src="02-curtain-call.svg" alt="Curtain Call icon on a light background" width="200" height="200"></div>
+    <div class="tile dark"><img src="02-curtain-call.svg" alt="Curtain Call icon on a dark background" width="200" height="200"></div>
+  </div>
+  <p>Velvet curtains parting on a lit screen. Showtime.</p>
+  <div class="sizes" aria-label="Small sizes">
+    <img src="02-curtain-call.svg" alt="" width="128" height="128"><img src="02-curtain-call.svg" alt="" width="64" height="64"><img src="02-curtain-call.svg" alt="" width="32" height="32"><img src="02-curtain-call.svg" alt="" width="16" height="16">
+    <span>128 · 64 · 32 · 16</span>
+  </div>
+</article>
+<article class="card" id="icon-3">
+  <header><span class="num">03</span><h2>On Air</h2></header>
+  <div class="stage-pair">
+    <div class="tile light"><img src="03-on-air.svg" alt="On Air icon on a light background" width="200" height="200"></div>
+    <div class="tile dark"><img src="03-on-air.svg" alt="On Air icon on a dark background" width="200" height="200"></div>
+  </div>
+  <p>A live screen and its red tally light. You are on.</p>
+  <div class="sizes" aria-label="Small sizes">
+    <img src="03-on-air.svg" alt="" width="128" height="128"><img src="03-on-air.svg" alt="" width="64" height="64"><img src="03-on-air.svg" alt="" width="32" height="32"><img src="03-on-air.svg" alt="" width="16" height="16">
+    <span>128 · 64 · 32 · 16</span>
+  </div>
+</article>
+<article class="card" id="icon-4">
+  <header><span class="num">04</span><h2>Peekaboo</h2></header>
+  <div class="stage-pair">
+    <div class="tile light"><img src="04-peekaboo.svg" alt="Peekaboo icon on a light background" width="200" height="200"></div>
+    <div class="tile dark"><img src="04-peekaboo.svg" alt="Peekaboo icon on a dark background" width="200" height="200"></div>
+  </div>
+  <p>The page fills everything. Tabs peek in from the top edge.</p>
+  <div class="sizes" aria-label="Small sizes">
+    <img src="04-peekaboo.svg" alt="" width="128" height="128"><img src="04-peekaboo.svg" alt="" width="64" height="64"><img src="04-peekaboo.svg" alt="" width="32" height="32"><img src="04-peekaboo.svg" alt="" width="16" height="16">
+    <span>128 · 64 · 32 · 16</span>
+  </div>
+</article>
+<article class="card" id="icon-5">
+  <header><span class="num">05</span><h2>Pop S</h2></header>
+  <div class="stage-pair">
+    <div class="tile light"><img src="05-pop-s.svg" alt="Pop S icon on a light background" width="200" height="200"></div>
+    <div class="tile dark"><img src="05-pop-s.svg" alt="Pop S icon on a dark background" width="200" height="200"></div>
+  </div>
+  <p>A pop-art S with a red offset and halftone dots, like the site.</p>
+  <div class="sizes" aria-label="Small sizes">
+    <img src="05-pop-s.svg" alt="" width="128" height="128"><img src="05-pop-s.svg" alt="" width="64" height="64"><img src="05-pop-s.svg" alt="" width="32" height="32"><img src="05-pop-s.svg" alt="" width="16" height="16">
+    <span>128 · 64 · 32 · 16</span>
+  </div>
+</article>
+<article class="card" id="icon-6">
+  <header><span class="num">06</span><h2>Spotlight</h2></header>
+  <div class="stage-pair">
+    <div class="tile light"><img src="06-spotlight-floor.svg" alt="Spotlight icon on a light background" width="200" height="200"></div>
+    <div class="tile dark"><img src="06-spotlight-floor.svg" alt="Spotlight icon on a dark background" width="200" height="200"></div>
+  </div>
+  <p>One cone of light on an empty stage. Everything else is dark.</p>
+  <div class="sizes" aria-label="Small sizes">
+    <img src="06-spotlight-floor.svg" alt="" width="128" height="128"><img src="06-spotlight-floor.svg" alt="" width="64" height="64"><img src="06-spotlight-floor.svg" alt="" width="32" height="32"><img src="06-spotlight-floor.svg" alt="" width="16" height="16">
+    <span>128 · 64 · 32 · 16</span>
+  </div>
+</article>
+<article class="card" id="icon-7">
+  <header><span class="num">07</span><h2>Proscenium</h2></header>
+  <div class="stage-pair">
+    <div class="tile light"><img src="07-proscenium.svg" alt="Proscenium icon on a light background" width="200" height="200"></div>
+    <div class="tile dark"><img src="07-proscenium.svg" alt="Proscenium icon on a dark background" width="200" height="200"></div>
+  </div>
+  <p>A golden theater arch framing a bright screen.</p>
+  <div class="sizes" aria-label="Small sizes">
+    <img src="07-proscenium.svg" alt="" width="128" height="128"><img src="07-proscenium.svg" alt="" width="64" height="64"><img src="07-proscenium.svg" alt="" width="32" height="32"><img src="07-proscenium.svg" alt="" width="16" height="16">
+    <span>128 · 64 · 32 · 16</span>
+  </div>
+</article>
+<article class="card" id="icon-8">
+  <header><span class="num">08</span><h2>Viewfinder</h2></header>
+  <div class="stage-pair">
+    <div class="tile light"><img src="08-viewfinder.svg" alt="Viewfinder icon on a light background" width="200" height="200"></div>
+    <div class="tile dark"><img src="08-viewfinder.svg" alt="Viewfinder icon on a dark background" width="200" height="200"></div>
+  </div>
+  <p>Camera framing brackets around a red record dot. Frame the page.</p>
+  <div class="sizes" aria-label="Small sizes">
+    <img src="08-viewfinder.svg" alt="" width="128" height="128"><img src="08-viewfinder.svg" alt="" width="64" height="64"><img src="08-viewfinder.svg" alt="" width="32" height="32"><img src="08-viewfinder.svg" alt="" width="16" height="16">
+    <span>128 · 64 · 32 · 16</span>
+  </div>
+</article>
+<article class="card" id="icon-9">
+  <header><span class="num">09</span><h2>Capsule</h2></header>
+  <div class="stage-pair">
+    <div class="tile light"><img src="09-glass-capsule.svg" alt="Capsule icon on a light background" width="200" height="200"></div>
+    <div class="tile dark"><img src="09-glass-capsule.svg" alt="Capsule icon on a dark background" width="200" height="200"></div>
+  </div>
+  <p>The floating tab capsule itself, the thing you reach for.</p>
+  <div class="sizes" aria-label="Small sizes">
+    <img src="09-glass-capsule.svg" alt="" width="128" height="128"><img src="09-glass-capsule.svg" alt="" width="64" height="64"><img src="09-glass-capsule.svg" alt="" width="32" height="32"><img src="09-glass-capsule.svg" alt="" width="16" height="16">
+    <span>128 · 64 · 32 · 16</span>
+  </div>
+</article>
+<article class="card" id="icon-10">
+  <header><span class="num">10</span><h2>Halftone</h2></header>
+  <div class="stage-pair">
+    <div class="tile light"><img src="10-halftone-window.svg" alt="Halftone icon on a light background" width="200" height="200"></div>
+    <div class="tile dark"><img src="10-halftone-window.svg" alt="Halftone icon on a dark background" width="200" height="200"></div>
+  </div>
+  <p>A bold outlined window over red halftone, straight from the poster.</p>
+  <div class="sizes" aria-label="Small sizes">
+    <img src="10-halftone-window.svg" alt="" width="128" height="128"><img src="10-halftone-window.svg" alt="" width="64" height="64"><img src="10-halftone-window.svg" alt="" width="32" height="32"><img src="10-halftone-window.svg" alt="" width="16" height="16">
+    <span>128 · 64 · 32 · 16</span>
+  </div>
+</article></section>
+  <p class="foot">Source SVGs are in this folder (<code>01-tab-line.svg</code> … <code>10-halftone-window.svg</code>). The one you pick becomes <code>build/icon.svg</code>, <code>icon.png</code> and <code>icon.icns</code>.</p>
+</div>
+</body>
+</html>

@@ -1,0 +1,584 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Stage Browser</title>
+<meta name="description" content="Stage is a minimal Chromium browser for screen sharing. The page fills the window and the tabs stay hidden until you reach for them.">
+<link rel="icon" href="icon.png">
+<style>
+/* Layout: the clean single-column look from the build previews. 64px nav, an 880px column,
+   a tight bold headline, muted copy, bordered cards and a terminal block. System font only. */
+:root {
+  --bg: #ffffff;
+  --fg: #1a1a1a;
+  --muted: rgb(26 26 26 / .68);
+  --line: rgb(128 128 128 / .25);
+  --soft: rgb(128 128 128 / .12);
+  --accent: #ff4f00;
+  --accent-ink: #ffffff;
+  --capsule: rgb(248 248 250 / .97);
+  --capsule-line: rgb(0 0 0 / .09);
+  --capsule-ink: #1d1d1f;
+  --capsule-muted: #6e6e73;
+  --tab-on: #ffffff;
+  --tab-hover: rgb(0 0 0 / .05);
+  --shadow: 0 1px 2px rgb(0 0 0 / .06), 0 16px 40px -16px rgb(0 0 0 / .25);
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, monospace;
+
+  /* the demo website is "the page", so it keeps one look in both themes */
+  --site-bg: #fbfbfd; --site-ink: #1b1e27; --site-muted: #687084; --site-line: #e2e5ed;
+  --site-brand: #2e6b5b; --site-brand-soft: #e3efe9;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1117;
+    --fg: #e6edf3;
+    --muted: rgb(230 237 243 / .68);
+    --accent: #238636;
+    --capsule: rgb(28 29 34 / .96);
+    --capsule-line: rgb(255 255 255 / .09);
+    --capsule-ink: #f3f4f7;
+    --capsule-muted: #979bab;
+    --tab-on: rgb(255 255 255 / .13);
+    --tab-hover: rgb(255 255 255 / .06);
+    --shadow: 0 1px 2px rgb(0 0 0 / .4), 0 20px 50px -20px rgb(0 0 0 / .8);
+    color-scheme: dark;
+  }
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0; background: var(--bg); color: var(--fg);
+  font: 15px/1.5 var(--font); -webkit-font-smoothing: antialiased;
+}
+a { color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+code, kbd, pre { font-family: var(--mono); }
+kbd { font-size: 12px; padding: 2px 6px; border-radius: 6px; border: 1px solid var(--line); background: var(--soft); white-space: nowrap; }
+p { margin: 0 0 12px; color: var(--muted); max-width: 640px; }
+h1, h2, h3 { margin: 0; letter-spacing: -.03em; text-wrap: balance; }
+
+/* ---------- nav ---------- */
+nav.top {
+  position: sticky; top: 0; z-index: 10;
+  height: 64px; display: flex; align-items: center; gap: 28px;
+  padding: 0 max(16px, env(safe-area-inset-right, 0px)) 0 max(16px, env(safe-area-inset-left, 0px));
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: saturate(1.4) blur(12px); -webkit-backdrop-filter: saturate(1.4) blur(12px);
+  border-bottom: 1px solid var(--line);
+}
+@media (min-width: 720px) { nav.top { padding: 0 32px; } }
+.logo { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; }
+.logo img { width: 28px; height: 28px; border-radius: 8px; }
+.logo b { font-weight: 600; font-size: 15px; }
+nav.top .links { display: flex; gap: 28px; }
+nav.top .links a { text-decoration: none; font-size: 14px; opacity: .65; }
+nav.top .links a:hover { opacity: 1; }
+.cta {
+  margin-left: auto; padding: 8px 16px; border-radius: 8px; border: 0;
+  background: var(--accent); color: var(--accent-ink); font: 600 14px/1.2 var(--font); text-decoration: none; cursor: pointer;
+}
+.cta:hover { filter: brightness(1.08); }
+@media (max-width: 640px) { nav.top .links { display: none; } }
+
+/* ---------- main column ---------- */
+main { max-width: 880px; margin: 0 auto; padding: 56px max(16px, env(safe-area-inset-right, 0px)) 0 max(16px, env(safe-area-inset-left, 0px)); }
+@media (min-width: 720px) { main { padding-left: 32px; padding-right: 32px; } }
+h1 { font-size: clamp(34px, 6vw, 44px); line-height: 1.1; margin-bottom: 16px; }
+h2 { font-size: 28px; line-height: 1.15; margin-bottom: 8px; }
+h3 { font-size: 16px; letter-spacing: -.01em; margin-bottom: 6px; }
+section { scroll-margin-top: 80px; }
+section + section { margin-top: 72px; }
+
+.cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-top: 32px; }
+.card { border: 1px solid var(--line); border-radius: 12px; padding: 16px; min-width: 0; }
+.card p { font-size: 14px; margin: 0; }
+.card .ico { width: 28px; height: 28px; border-radius: 8px; background: var(--soft); display: grid; place-items: center; margin-bottom: 12px; }
+@media (max-width: 720px) { .cards { grid-template-columns: 1fr; } }
+
+.term { position: relative; margin: 24px 0 0; }
+.term pre {
+  margin: 0; padding: 16px; border-radius: 10px; background: var(--soft);
+  font-size: 13px; line-height: 1.6; overflow-x: auto; white-space: pre;
+}
+.term .ok { color: #3fb950; }
+.term .dim { opacity: .55; }
+.copy {
+  position: absolute; top: 10px; right: 10px;
+  font: 500 12px/1 var(--font); color: var(--fg); background: var(--bg);
+  border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; cursor: pointer;
+}
+.copy:hover { background: var(--soft); }
+
+/* ---------- live demo ---------- */
+.demo { margin: 40px 0 0; display: grid; gap: 12px; }
+.window {
+  position: relative; container-type: inline-size;
+  aspect-ratio: 16 / 10; width: 100%; max-width: 100%;
+  border-radius: 12px; overflow: hidden; border: 1px solid var(--line);
+  background: var(--site-bg); color: var(--site-ink); box-shadow: var(--shadow);
+  touch-action: manipulation;
+}
+.hot-edge {
+  position: absolute; z-index: 3; inset: 0 0 auto; height: 3px;
+  background: linear-gradient(90deg, transparent, var(--accent) 30%, var(--accent) 70%, transparent);
+  opacity: .5; animation: breathe 2.8s ease-in-out infinite; transition: opacity .2s;
+}
+.window.revealed .hot-edge { opacity: 0; animation: none; }
+@keyframes breathe { 50% { opacity: .15; } }
+.strip {
+  position: absolute; z-index: 4; inset: 0 0 auto; height: 52px;
+  display: flex; justify-content: center; align-items: flex-start;
+  padding: 8px 12px 0 84px; pointer-events: none;
+}
+.lights { position: absolute; left: 18px; top: 20px; display: flex; gap: 8px; opacity: 0; transition: opacity .16s; }
+.lights i { width: 12px; height: 12px; border-radius: 50%; background: #ff5f57; }
+.lights i:nth-child(2) { background: #febc2e; }
+.lights i:nth-child(3) { background: #28c840; }
+.capsule {
+  display: flex; align-items: center; gap: 2px; height: 36px; max-width: 100%; min-width: 0;
+  padding: 4px; border-radius: 12px; background: var(--capsule); color: var(--capsule-ink);
+  border: .5px solid var(--capsule-line);
+  box-shadow: 0 1px 2px rgb(0 0 0 / .08), 0 6px 16px -6px rgb(0 0 0 / .3);
+  font: 500 13px/1 var(--font);
+  opacity: 0; transform: translateY(-10px); pointer-events: none;
+  transition: opacity 120ms ease-in, transform 120ms ease-in;
+}
+.window.revealed .lights { opacity: 1; }
+.window.revealed .capsule {
+  opacity: 1; transform: none; pointer-events: auto;
+  transition: opacity 160ms cubic-bezier(.2,.8,.2,1), transform 160ms cubic-bezier(.2,.8,.2,1);
+}
+.tabs { display: flex; gap: 2px; min-width: 0; }
+.tab {
+  display: flex; align-items: center; gap: 8px; height: 28px; min-width: 0; width: 176px;
+  padding: 0 6px 0 8px; border: 0; border-radius: 8px; background: transparent;
+  color: var(--capsule-muted); font: inherit; cursor: default; text-align: left;
+}
+.tab:hover { background: var(--tab-hover); }
+.tab.active { background: var(--tab-on); color: var(--capsule-ink); box-shadow: 0 1px 2px rgb(0 0 0 / .08); }
+.fav { flex: none; width: 16px; height: 16px; border-radius: 4px; display: grid; place-items: center; background: var(--c); color: #fff; font: 700 10px/1 var(--font); }
+.tab .t { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; mask-image: linear-gradient(90deg, #000 80%, transparent); }
+.tab .x { flex: none; width: 16px; height: 16px; border-radius: 4px; display: grid; place-items: center; font-size: 14px; opacity: 0; }
+.tab:hover .x, .tab.active .x { opacity: .7; }
+.tab .x:hover { background: var(--tab-hover); opacity: 1; }
+.cap-btn { flex: none; width: 28px; height: 28px; border: 0; border-radius: 7px; background: transparent; color: var(--capsule-muted); display: grid; place-items: center; cursor: default; }
+.cap-btn:hover { background: var(--tab-hover); color: var(--capsule-ink); }
+.cap-btn[aria-pressed="true"] { color: var(--capsule-ink); }
+.cap-btn[aria-pressed="true"] .pin-fill { fill: currentColor; }
+.cap-sep { width: 1px; height: 16px; background: var(--capsule-line); margin: 0 4px; flex: none; }
+.ext { width: 18px; height: 18px; border-radius: 5px; background: #2b4cc8; color: #fff; display: grid; place-items: center; font: 700 10px/1 var(--font); }
+@container (max-width: 640px) {
+  .strip { padding-left: 64px; }
+  .lights { left: 12px; gap: 6px; }
+  .tab { width: auto; padding: 0 6px; }
+  .tab .t, .tab .x { display: none; }
+  .tab.active .t { display: block; max-width: 96px; }
+}
+.viewport { position: absolute; inset: 0; overflow: hidden; transition: top .2s ease; }
+.window.pinned .viewport { top: 52px; }
+.site { height: 100%; display: grid; grid-template-rows: auto 1fr; font-size: clamp(8px, 1.6cqw, 15px); }
+.site p { color: var(--site-muted); max-width: none; margin: 0; }
+.site-top { display: flex; align-items: center; gap: 2.2em; padding: 1.3em 2.4em; border-bottom: 1px solid var(--site-line); font-weight: 500; }
+.site-top .slogo { display: flex; align-items: center; gap: .5em; font-weight: 700; }
+.site-top .slogo i { width: 1em; height: 1em; border-radius: 3px; background: var(--site-brand); transform: rotate(45deg) scale(.8); }
+.site-top .snav { display: flex; gap: 1.6em; color: var(--site-muted); }
+.site-top .scta { margin-left: auto; background: var(--site-brand); color: #fff; padding: .55em 1em; border-radius: .5em; }
+.slide { display: grid; align-content: center; gap: 1.2em; padding: 2em 4.5em; }
+.slide .kicker { font: 500 .85em/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--site-brand); }
+.slide h3 { font-size: 3.2em; line-height: 1.02; letter-spacing: -.03em; max-width: 13ch; margin: 0; }
+.slide ol { margin: .6em 0 0; padding: 0; list-style: none; display: flex; gap: 1em; flex-wrap: wrap; counter-reset: s; }
+.slide li { counter-increment: s; display: flex; align-items: center; gap: .6em; padding: .7em 1em; border-radius: .6em; background: var(--site-brand-soft); font-weight: 500; }
+.slide li::before { content: counter(s); width: 1.6em; height: 1.6em; border-radius: 50%; display: grid; place-items: center; background: var(--site-brand); color: #fff; font-size: .85em; }
+.dash { display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: auto 1fr; gap: 1.2em; padding: 2em 2.4em; }
+.kpi { border: 1px solid var(--site-line); border-radius: .7em; padding: 1em 1.2em; display: grid; gap: .3em; }
+.kpi span { color: var(--site-muted); font-size: .9em; }
+.kpi b { font-size: 2.1em; line-height: 1; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.chart { grid-column: 1 / -1; border: 1px solid var(--site-line); border-radius: .7em; padding: 1.2em; display: grid; grid-template-rows: auto 1fr; gap: 1em; }
+.chart span { color: var(--site-muted); font-size: .9em; }
+.bars { display: flex; align-items: flex-end; gap: .6em; height: 100%; min-height: 3em; border-bottom: 1px solid var(--site-line); }
+.bars i { flex: 1; height: var(--h); background: var(--site-brand); border-radius: .3em .3em 0 0; opacity: .85; }
+.docs { display: grid; grid-template-columns: 13em 1fr; min-height: 0; }
+.docs aside { border-right: 1px solid var(--site-line); padding: 2em 1.6em; display: grid; align-content: start; gap: .9em; color: var(--site-muted); }
+.docs aside b { color: var(--site-ink); }
+.docs article { padding: 2em 3em; display: grid; align-content: start; gap: 1em; }
+.docs h3 { font-size: 2.2em; margin: 0; }
+.docs pre { margin: 0; background: #161a24; color: #e6e9f1; border-radius: .6em; padding: 1em 1.2em; font-size: .9em; overflow: hidden; }
+.ghost { position: absolute; z-index: 5; left: 62%; top: 66%; width: 20px; height: 20px; opacity: 0; pointer-events: none; filter: drop-shadow(0 1px 2px rgb(0 0 0 / .35)); }
+.ghost.go { animation: ghost-up 900ms cubic-bezier(.45,0,.2,1) forwards; }
+.ghost.back { animation: ghost-down 700ms ease-in forwards; }
+@keyframes ghost-up { 0% { opacity: 0; } 18% { opacity: 1; } 100% { opacity: 1; top: 3px; } }
+@keyframes ghost-down { 0% { opacity: 1; top: 3px; } 100% { opacity: 0; top: 40%; } }
+.demo-caption { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px 16px; font-size: 14px; color: var(--muted); }
+.ghost-btn { font: 500 13px/1 var(--font); color: var(--fg); background: none; border: 1px solid var(--line); border-radius: 8px; padding: 7px 12px; cursor: pointer; }
+.ghost-btn:hover { background: var(--soft); }
+
+/* ---------- lists, table, faq ---------- */
+.steps { counter-reset: step; }
+.steps .card h3::before { counter-increment: step; content: counter(step) ". "; color: var(--muted); }
+.table-wrap { overflow-x: auto; margin-top: 16px; border: 1px solid var(--line); border-radius: 12px; }
+table { border-collapse: collapse; width: 100%; min-width: 420px; }
+td { padding: 10px 16px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+tr:last-child td { border-bottom: 0; }
+td:first-child { width: 40%; }
+td:last-child { color: var(--muted); }
+.keys { display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+details { border-bottom: 1px solid var(--line); }
+details:first-of-type { border-top: 1px solid var(--line); margin-top: 16px; }
+summary { cursor: pointer; list-style: none; display: flex; justify-content: space-between; gap: 16px; padding: 14px 0; font-weight: 600; }
+summary::-webkit-details-marker { display: none; }
+summary::after { content: "+"; opacity: .55; font-weight: 400; transition: transform .2s; }
+details[open] summary::after { transform: rotate(45deg); }
+details p { padding-bottom: 14px; margin: 0; }
+
+footer {
+  max-width: 880px; margin: 88px auto 0; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px;
+  padding: 24px max(16px, env(safe-area-inset-right, 0px)) 40px max(16px, env(safe-area-inset-left, 0px));
+  border-top: 1px solid var(--line); color: var(--muted); font-size: 13px;
+}
+@media (min-width: 720px) { footer { padding-left: 32px; padding-right: 32px; } }
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .hot-edge { animation: none; }
+  .capsule, .window.revealed .capsule, .viewport, .lights { transition: none; }
+}
+</style>
+</head>
+<body>
+
+<nav class="top" aria-label="Main">
+  <a class="logo" href="#top"><img src="icon.png" alt="" width="28" height="28"><b>Stage</b></a>
+  <div class="links">
+    <a href="#how">How it works</a>
+    <a href="#features">Features</a>
+    <a href="#shortcuts">Shortcuts</a>
+    <a href="#faq">FAQ</a>
+  </div>
+  <a class="cta" href="#install">Get started</a>
+</nav>
+
+<main id="top">
+  <section aria-labelledby="hero-title">
+    <h1 id="hero-title">Present the page,<br>keep your browser offstage.</h1>
+    <p>Stage is a minimal Chromium browser for workshops, webinars and demos. The page fills the window, and your tabs appear only when you reach for them.</p>
+    <p>Runs from your terminal on macOS, with Chrome extensions, the Okta Browser Plugin included.</p>
+
+    <div class="cards">
+      <div class="card">
+        <div class="ico" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 16 16"><rect x="1.5" y="3" width="13" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M5.5 3.6h5" stroke="var(--accent)" stroke-width="1.8" stroke-linecap="round"/></svg></div>
+        <h3>Nothing above the page</h3>
+        <p>No toolbar, address bar or bookmarks. Tabs slide in from the top edge and leave when you move away.</p>
+      </div>
+      <div class="card">
+        <div class="ico" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M6 2.5h4v2a1.3 1.3 0 1 0 2.6 0v-2h1v11h-11v-11z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg></div>
+        <h3>Chrome extensions</h3>
+        <p>Install from the Chrome Web Store. Okta's icon sits right in the tab bar.</p>
+      </div>
+      <div class="card">
+        <div class="ico" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 16 16"><rect x="1.5" y="3" width="13" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M4.5 6.5l2 1.5-2 1.5M8 10h3.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <h3>Starts from the terminal</h3>
+        <p>No app to build or sign. Run it again and the new page joins the open window as a tab.</p>
+      </div>
+    </div>
+
+    <div class="term">
+      <pre><span class="dim">$</span> npx stage-browser https://example.com
+<span class="ok">✔</span> opened 3 tabs
+<span class="ok">✔</span> session restored</pre>
+      <button class="copy" type="button" data-copy="npx stage-browser https://example.com">Copy</button>
+    </div>
+
+    <figure class="demo" aria-label="Interactive demo">
+      <div class="window" id="win">
+        <div class="hot-edge" aria-hidden="true"></div>
+        <div class="strip" id="strip">
+          <span class="lights" aria-hidden="true"><i></i><i></i><i></i></span>
+          <div class="capsule" id="capsule">
+            <div class="tabs" role="tablist" aria-label="Demo tabs">
+              <button class="tab active" type="button" role="tab" aria-selected="true" data-page="slides"><span class="fav" style="--c:#2e6b5b">N</span><span class="t">Q3 webinar · slides</span><span class="x" aria-hidden="true">×</span></button>
+              <button class="tab" type="button" role="tab" aria-selected="false" data-page="dash"><span class="fav" style="--c:#d4382a">A</span><span class="t">Trials dashboard</span><span class="x" aria-hidden="true">×</span></button>
+              <button class="tab" type="button" role="tab" aria-selected="false" data-page="docs"><span class="fav" style="--c:#3b4a6b">D</span><span class="t">Setup guide · Docs</span><span class="x" aria-hidden="true">×</span></button>
+            </div>
+            <button class="cap-btn" id="add" type="button" aria-label="Reopen a closed tab" title="New tab">
+              <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3.5v9M3.5 8h9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+            </button>
+            <span class="cap-sep" aria-hidden="true"></span>
+            <span class="cap-btn" title="An extension icon, such as Okta's" aria-hidden="true"><span class="ext">O</span></span>
+            <button class="cap-btn" id="pin" type="button" aria-pressed="false" aria-label="Pin the tab bar">
+              <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><g transform="rotate(45 12 12)"><path class="pin-fill" d="M12 17v5M9 10.8a2 2 0 0 1-1.1 1.8l-1.8.9A2 2 0 0 0 5 15.2v.8a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.8a2 2 0 0 0-1.1-1.8l-1.8-.9A2 2 0 0 1 15 10.8V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></g></svg>
+            </button>
+          </div>
+        </div>
+        <div class="viewport">
+          <section class="site" data-page="slides" aria-label="Demo page: webinar slides">
+            <div class="site-top"><span class="slogo"><i></i>Northwind</span><span class="snav"><span>Product</span><span>Pricing</span><span>Customers</span></span><span class="scta">Start free</span></div>
+            <div class="slide">
+              <span class="kicker">Live webinar · Q3</span>
+              <h3>Onboard a new customer in three steps</h3>
+              <ol><li>Connect your CRM</li><li>Map the welcome email</li><li>Turn on the handoff</li></ol>
+            </div>
+          </section>
+          <section class="site" data-page="dash" aria-label="Demo page: dashboard" hidden>
+            <div class="site-top"><span class="slogo"><i></i>Northwind</span><span class="snav"><span>Overview</span><span>Trials</span><span>Reports</span></span><span class="scta">Export</span></div>
+            <div class="dash">
+              <div class="kpi"><span>Trials started</span><b>1,284</b></div>
+              <div class="kpi"><span>Activated</span><b>61%</b></div>
+              <div class="kpi"><span>Days to first value</span><b>2.4</b></div>
+              <div class="chart"><span>Weekly sign-ups, last 12 weeks</span>
+                <div class="bars" aria-hidden="true"><i style="--h:38%"></i><i style="--h:44%"></i><i style="--h:41%"></i><i style="--h:52%"></i><i style="--h:49%"></i><i style="--h:58%"></i><i style="--h:63%"></i><i style="--h:60%"></i><i style="--h:71%"></i><i style="--h:77%"></i><i style="--h:84%"></i><i style="--h:96%"></i></div>
+              </div>
+            </div>
+          </section>
+          <section class="site" data-page="docs" aria-label="Demo page: documentation" hidden>
+            <div class="site-top"><span class="slogo"><i></i>Northwind Docs</span><span class="snav"><span>Guides</span><span>API</span><span>Changelog</span></span><span class="scta">Sign in</span></div>
+            <div class="docs">
+              <aside><b>Getting started</b><span>Connect your CRM</span><span>Welcome emails</span><span>Handoffs</span><span>Permissions</span></aside>
+              <article>
+                <h3>Connect your CRM</h3>
+                <p>Pick your CRM, sign in, and choose which pipeline new customers come from.</p>
+                <pre>northwind connect crm --pipeline "New customers"</pre>
+              </article>
+            </div>
+          </section>
+        </div>
+        <svg class="ghost" id="ghost" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 2l13 7.2-5.6 1.2L13.6 17l-2.4 1-3.2-6.5L3.6 15z" fill="#fff" stroke="#111" stroke-width="1.2" stroke-linejoin="round"/></svg>
+      </div>
+      <figcaption class="demo-caption">
+        <span>Try it: move your pointer to the top edge of the window.</span>
+        <button class="ghost-btn" id="toggle" type="button" aria-controls="strip" aria-expanded="false">Show tabs</button>
+      </figcaption>
+    </figure>
+  </section>
+
+  <section id="how" aria-labelledby="how-title">
+    <h2 id="how-title">How it works</h2>
+    <p>Three steps before you go live.</p>
+    <div class="cards steps">
+      <div class="card">
+        <h3>Open your tabs</h3>
+        <p><code>stage --size 1280x720 app.example.com docs.example.com</code> opens each address as a tab in a fixed 16:9 window.</p>
+      </div>
+      <div class="card">
+        <h3>Share the Stage window</h3>
+        <p>In Zoom, Meet or Teams, pick the Stage window instead of your whole screen. The audience sees the page, nothing else.</p>
+      </div>
+      <div class="card">
+        <h3>Reach up for tabs</h3>
+        <p>Push the pointer to the top edge and the tabs slide in. Or use <kbd>⌘1</kbd>–<kbd>⌘9</kbd> and <kbd>⌘L</kbd>.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="features" aria-labelledby="features-title">
+    <h2 id="features-title">Features</h2>
+    <p>Small on purpose.</p>
+    <div class="cards">
+      <div class="card"><h3>Pinned mode</h3><p><kbd>⇧⌘B</kbd> keeps the tab bar visible and moves the page below it.</p></div>
+      <div class="card"><h3>Window presets</h3><p>1280×720, 1440×900, 1600×900 and 1920×1080 from the View menu, or <code>--size</code>.</p></div>
+      <div class="card"><h3>Readable from the back row</h3><p>Zoom with <kbd>⌘=</kbd> and <kbd>⌘-</kbd>, reset with <kbd>⌘0</kbd>.</p></div>
+      <div class="card"><h3>Session restore</h3><p>Stage reopens your last tabs, so a rehearsal setup is still there on the day.</p></div>
+      <div class="card"><h3>Escape hatch</h3><p><kbd>⇧⌘O</kbd> opens the current page in Google Chrome.</p></div>
+      <div class="card"><h3>App links</h3><p>Zoom, Slack and Okta Verify links open in their own apps.</p></div>
+    </div>
+  </section>
+
+  <section id="shortcuts" aria-labelledby="shortcuts-title">
+    <h2 id="shortcuts-title">Shortcuts</h2>
+    <div class="table-wrap">
+      <table>
+        <tbody>
+          <tr><td><span class="keys"><kbd>⌘T</kbd></span></td><td>New tab, straight into the address box</td></tr>
+          <tr><td><span class="keys"><kbd>⌘L</kbd></span></td><td>Go to an address or search</td></tr>
+          <tr><td><span class="keys"><kbd>⌘1</kbd>–<kbd>⌘9</kbd></span></td><td>Jump to a tab (<kbd>⌘9</kbd> is the last)</td></tr>
+          <tr><td><span class="keys"><kbd>⌃Tab</kbd><kbd>⇧⌘]</kbd><kbd>⇧⌘[</kbd></span></td><td>Next or previous tab</td></tr>
+          <tr><td><span class="keys"><kbd>⌘W</kbd><kbd>⇧⌘T</kbd></span></td><td>Close a tab, reopen the last closed one</td></tr>
+          <tr><td><span class="keys"><kbd>⌘[</kbd><kbd>⌘]</kbd></span></td><td>Back and forward</td></tr>
+          <tr><td><span class="keys"><kbd>⌘=</kbd><kbd>⌘-</kbd><kbd>⌘0</kbd></span></td><td>Zoom in, out, reset</td></tr>
+          <tr><td><span class="keys"><kbd>⇧⌘B</kbd></span></td><td>Pin or unpin the tab bar</td></tr>
+          <tr><td><span class="keys"><kbd>⌃⌘F</kbd></span></td><td>Full screen</td></tr>
+          <tr><td><span class="keys"><kbd>⇧⌘O</kbd></span></td><td>Open the page in Google Chrome</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="install" aria-labelledby="install-title">
+    <h2 id="install-title">Get started</h2>
+    <p>Needs macOS and Node 18 or later. The first run downloads Chromium, about 100 MB.</p>
+    <div class="term">
+      <pre><span class="dim"># try it without installing</span>
+<span class="dim">$</span> npx stage-browser https://example.com</pre>
+      <button class="copy" type="button" data-copy="npx stage-browser https://example.com">Copy</button>
+    </div>
+    <div class="term">
+      <pre><span class="dim"># or install the stage command</span>
+<span class="dim">$</span> npm i -g stage-browser
+<span class="dim">$</span> stage example.com docs.example.com</pre>
+      <button class="copy" type="button" data-copy="npm i -g stage-browser">Copy</button>
+    </div>
+  </section>
+
+  <section id="faq" aria-labelledby="faq-title">
+    <h2 id="faq-title">FAQ</h2>
+    <details>
+      <summary>Does the Okta plugin work?</summary>
+      <p>Yes. It installs from the Chrome Web Store and its pop-up opens from the tab bar. Stage supports most Chrome extension APIs but not every one, so if an extension misbehaves, <kbd>⇧⌘O</kbd> opens the page in Google Chrome.</p>
+    </details>
+    <details>
+      <summary>Is it signed or notarized?</summary>
+      <p>There's nothing to sign. Stage runs Electron's own Chromium build from your terminal, so there's no separate app bundle for macOS to check.</p>
+    </details>
+    <details>
+      <summary>Why does the menu bar say "Electron"?</summary>
+      <p>The bold app name comes from the Electron binary Stage runs. Share only the Stage window and the menu bar stays off the call.</p>
+    </details>
+    <details>
+      <summary>Where are my logins and tabs kept?</summary>
+      <p>In <code>~/Library/Application Support/Stage</code>. npx, a global install and a clone all share it, so you sign in once.</p>
+    </details>
+    <details>
+      <summary>Windows or Linux?</summary>
+      <p>Not yet. Stage is macOS only.</p>
+    </details>
+  </section>
+</main>
+
+<footer>
+  <span>Stage 0.1.0 · MIT</span>
+  <span>Built on Electron and Chromium</span>
+</footer>
+
+<script>
+(() => {
+  document.querySelectorAll('[data-copy]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const done = (label) => { btn.textContent = label; setTimeout(() => { btn.textContent = 'Copy'; }, 1600); };
+      try {
+        await navigator.clipboard.writeText(btn.dataset.copy);
+        done('Copied');
+      } catch {
+        const range = document.createRange();
+        range.selectNodeContents(btn.parentElement.querySelector('pre'));
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+        done('Press ⌘C');
+      }
+    });
+  });
+
+  // Live demo: the same reveal rules Stage uses.
+  const win = document.getElementById('win');
+  const strip = document.getElementById('strip');
+  const capsule = document.getElementById('capsule');
+  const tabsEl = capsule.querySelector('.tabs');
+  const toggle = document.getElementById('toggle');
+  const pinBtn = document.getElementById('pin');
+  const addBtn = document.getElementById('add');
+  const ghost = document.getElementById('ghost');
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const HOT_EDGE = 12;     // px; Stage uses 6 on a real window
+  const HIDE_DELAY = 350;  // ms
+  let visible = false, pinned = false, hovering = false, focused = false, forced = false;
+  let hideTimer = 0, userMoved = false;
+
+  const keepOpen = () => pinned || hovering || focused || forced;
+  function setVisible(v) {
+    if (visible === v) return;
+    visible = v;
+    win.classList.toggle('revealed', v);
+    toggle.setAttribute('aria-expanded', String(v));
+    toggle.textContent = v ? 'Hide tabs' : 'Show tabs';
+  }
+  function cancelHide() { clearTimeout(hideTimer); hideTimer = 0; }
+  function scheduleHide() {
+    if (hideTimer || keepOpen()) return;
+    hideTimer = setTimeout(() => { hideTimer = 0; if (!keepOpen()) setVisible(false); }, HIDE_DELAY);
+  }
+  const yInWindow = (e) => e.clientY - win.getBoundingClientRect().top;
+
+  win.addEventListener('pointermove', (e) => {
+    if (e.pointerType === 'touch') return;
+    userMoved = true;
+    const y = yInWindow(e);
+    if (y <= HOT_EDGE) { cancelHide(); setVisible(true); return; }
+    if (!visible) return;
+    if (y > strip.offsetHeight + 24) scheduleHide(); else cancelHide();
+  });
+  win.addEventListener('pointerleave', () => { if (visible) scheduleHide(); });
+  win.addEventListener('pointerdown', (e) => {
+    if (e.pointerType !== 'touch') return;
+    userMoved = true;
+    if (yInWindow(e) <= 36) setVisible(true);
+    else if (!capsule.contains(e.target) && !pinned) { forced = false; setVisible(false); }
+  });
+  capsule.addEventListener('pointerenter', () => { hovering = true; cancelHide(); });
+  capsule.addEventListener('pointerleave', () => { hovering = false; });
+  capsule.addEventListener('focusin', () => { focused = true; cancelHide(); setVisible(true); });
+  capsule.addEventListener('focusout', (e) => { if (!capsule.contains(e.relatedTarget)) { focused = false; scheduleHide(); } });
+
+  toggle.addEventListener('click', () => {
+    userMoved = true;
+    if (visible) { forced = false; pinned = false; syncPin(); cancelHide(); setVisible(false); }
+    else { forced = true; setVisible(true); }
+  });
+  function syncPin() {
+    win.classList.toggle('pinned', pinned);
+    pinBtn.setAttribute('aria-pressed', String(pinned));
+    pinBtn.setAttribute('aria-label', pinned ? 'Unpin the tab bar' : 'Pin the tab bar');
+  }
+  pinBtn.addEventListener('click', () => { pinned = !pinned; syncPin(); if (pinned) setVisible(true); else scheduleHide(); });
+
+  function activate(tab) {
+    tabsEl.querySelectorAll('.tab').forEach((t) => {
+      const on = t === tab;
+      t.classList.toggle('active', on);
+      t.setAttribute('aria-selected', String(on));
+    });
+    win.querySelectorAll('.site').forEach((s) => { s.hidden = s.dataset.page !== tab.dataset.page; });
+  }
+  tabsEl.addEventListener('click', (e) => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    if (e.target.closest('.x')) {
+      if (tabsEl.querySelectorAll('.tab:not([hidden])').length <= 1) return;
+      const wasActive = tab.classList.contains('active');
+      tab.hidden = true;
+      if (wasActive) activate(tabsEl.querySelector('.tab:not([hidden])'));
+      return;
+    }
+    activate(tab);
+  });
+  addBtn.addEventListener('click', () => {
+    const closed = tabsEl.querySelector('.tab[hidden]');
+    if (closed) { closed.hidden = false; activate(closed); }
+  });
+
+  if (!reduceMotion && 'IntersectionObserver' in window) {
+    const io = new IntersectionObserver((entries) => {
+      if (!entries.some((en) => en.isIntersecting)) return;
+      io.disconnect();
+      setTimeout(() => {
+        if (userMoved || visible) { ghost.remove(); return; }
+        ghost.classList.add('go');
+        setTimeout(() => { if (!userMoved) setVisible(true); }, 900);
+        setTimeout(() => {
+          ghost.classList.remove('go');
+          ghost.classList.add('back');
+          if (!userMoved && !keepOpen()) setVisible(false);
+        }, 2700);
+        setTimeout(() => ghost.remove(), 3500);
+      }, 800);
+    }, { threshold: 0.6 });
+    io.observe(win);
+  } else {
+    ghost.remove();
+  }
+})();
+</script>
+</body>
+</html>

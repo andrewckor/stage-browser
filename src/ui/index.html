@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: crx:">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Stage</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- Tab bar: a 52px strip with one floating capsule. The leftmost 84px stay free for the traffic lights. -->
+  <div id="strip">
+    <div id="capsule">
+      <div id="tabs" role="tablist" aria-label="Tabs"></div>
+      <button id="new-tab" class="icon-btn" type="button" aria-label="New tab" title="New tab (⌘T)">
+        <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M8 3.5v9M3.5 8h9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+      </button>
+      <div id="controls">
+        <span class="divider" aria-hidden="true"></span>
+        <browser-action-list partition="persist:stage" alignment="bottom right"></browser-action-list>
+      </div>
+    </div>
+  </div>
+
+  <!-- Omnibox overlay (shown when state.overlay.type === 'omnibox'; the view is then full-window). -->
+  <div id="omni" hidden>
+    <div id="omni-backdrop"></div>
+    <div id="omni-panel" role="dialog" aria-label="Open a page or search">
+      <div id="omni-field">
+        <span id="omni-glyph" aria-hidden="true"></span>
+        <input id="omni-input" type="text" spellcheck="false" autocomplete="off" autocapitalize="off" autocorrect="off"
+               role="combobox" aria-expanded="false" aria-controls="omni-list" aria-autocomplete="list"
+               placeholder="Search or enter address" aria-label="Search or enter address">
+      </div>
+      <div id="omni-list" role="listbox" aria-label="Suggestions"></div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

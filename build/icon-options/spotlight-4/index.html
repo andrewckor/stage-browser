@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Stage Spotlight Round 4</title>
+<style>
+:root { --bg: #f4f5f7; --card: #fff; --ink: #111317; --muted: #646a77; --line: #e3e5ea; --accent: #3f63d8; color-scheme: light; }
+@media (prefers-color-scheme: dark) { :root { --bg: #0e0f12; --card: #17191e; --ink: #f2f3f5; --muted: #9aa0ad; --line: #272a31; --accent: #8fb4ff; color-scheme: dark; } }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+.wrap { max-width: 1280px; margin: 0 auto; padding: 48px max(20px, env(safe-area-inset-left)) 80px; }
+h1 { font: 800 clamp(32px, 5vw, 50px)/1.05 -apple-system, system-ui, sans-serif; letter-spacing: -.03em; margin: 0 0 12px; }
+.lede { color: var(--muted); font-size: 17px; max-width: 70ch; margin: 0 0 28px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 20px; padding: 18px; display: grid; gap: 14px; align-content: start; min-width: 0; }
+.num { font: 700 14px/1 ui-monospace, "SF Mono", Menlo, monospace; color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); padding: 6px 10px; border-radius: 8px; }
+.card p { margin: 0; color: var(--muted); }
+.big { display: grid; place-items: center; background: #2b2d33; border-radius: 14px; padding: 16px; }
+.big img { width: 100%; max-width: 256px; height: auto; }
+.pair { display: grid; grid-template-columns: 1fr 1fr; border-radius: 12px; overflow: hidden; }
+.tile { display: grid; place-items: center; padding: 12px; }
+.tile img { width: 100%; max-width: 110px; height: auto; }
+.tile.light { background: #f6f6f8; } .tile.dark { background: #16171b; }
+.sizes { display: flex; align-items: flex-end; gap: 12px; border-top: 1px solid var(--line); padding-top: 14px; }
+.sizes span { margin-left: auto; color: var(--muted); font: 12px/1 ui-monospace, "SF Mono", Menlo, monospace; }
+</style></head><body><div class="wrap">
+<h1>Back to the original, step by step.</h1>
+<p class="lede">Built on the original file: same tile, rim, window gradient and the same subtle beam transparency. No blurs and no blend modes. A changes only the geometry; B adds a warm-white beam; C adds a warm glow behind the window.</p>
+<section class="grid"><article class="card"><header><span class="num">Original</span></header><div class="big"><img src="original.svg" alt="Original icon"></div><div class="pair"><div class="tile light"><img src="original.svg" alt=""></div><div class="tile dark"><img src="original.svg" alt=""></div></div><p>What you have now.</p><div class="sizes"><img src="original.svg" alt="" width="64" height="64"><img src="original.svg" alt="" width="32" height="32"><img src="original.svg" alt="" width="16" height="16"><span>64 · 32 · 16</span></div></article>
+<article class="card"><header><span class="num">A</span></header><div class="big"><img src="A-geometry.svg" alt="A icon"></div><div class="pair"><div class="tile light"><img src="A-geometry.svg" alt=""></div><div class="tile dark"><img src="A-geometry.svg" alt=""></div></div><p>The original with only the geometry changed: taller window placed higher, centred tab line, beam tucked behind the window.</p><div class="sizes"><img src="A-geometry.svg" alt="" width="64" height="64"><img src="A-geometry.svg" alt="" width="32" height="32"><img src="A-geometry.svg" alt="" width="16" height="16"><span>64 · 32 · 16</span></div></article>
+<article class="card"><header><span class="num">B</span></header><div class="big"><img src="B-warm-beam.svg" alt="B icon"></div><div class="pair"><div class="tile light"><img src="B-warm-beam.svg" alt=""></div><div class="tile dark"><img src="B-warm-beam.svg" alt=""></div></div><p>A, with a warm-white beam at the same subtle transparency.</p><div class="sizes"><img src="B-warm-beam.svg" alt="" width="64" height="64"><img src="B-warm-beam.svg" alt="" width="32" height="32"><img src="B-warm-beam.svg" alt="" width="16" height="16"><span>64 · 32 · 16</span></div></article>
+<article class="card"><header><span class="num">C</span></header><div class="big"><img src="C-warm-glow.svg" alt="C icon"></div><div class="pair"><div class="tile light"><img src="C-warm-glow.svg" alt=""></div><div class="tile dark"><img src="C-warm-glow.svg" alt=""></div></div><p>B, with a soft warm glow behind the window; the cool blue glow sits lower.</p><div class="sizes"><img src="C-warm-glow.svg" alt="" width="64" height="64"><img src="C-warm-glow.svg" alt="" width="32" height="32"><img src="C-warm-glow.svg" alt="" width="16" height="16"><span>64 · 32 · 16</span></div></article></section></div></body></html>

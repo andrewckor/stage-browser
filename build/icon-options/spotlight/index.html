@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stage Spotlight Icons</title>
+<style>
+:root { --bg: #f4f5f7; --card: #fff; --ink: #111317; --muted: #646a77; --line: #e3e5ea; --gold: #d68a00; color-scheme: light; }
+@media (prefers-color-scheme: dark) { :root { --bg: #0e0f12; --card: #17191e; --ink: #f2f3f5; --muted: #9aa0ad; --line: #272a31; --gold: #ffc457; color-scheme: dark; } }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+.wrap { max-width: 1240px; margin: 0 auto; padding: 48px max(20px, env(safe-area-inset-left)) 80px; }
+h1 { font: 800 clamp(32px, 5vw, 52px)/1.05 -apple-system, system-ui, sans-serif; letter-spacing: -.03em; margin: 0 0 12px; }
+h1 span { color: var(--gold); }
+.lede { color: var(--muted); font-size: 17px; max-width: 64ch; margin: 0 0 28px; }
+.dock-wrap { border-radius: 22px; padding: 52px 20px 20px; margin-bottom: 36px; background: linear-gradient(135deg, #24324f, #5b3f6e 50%, #c8775a); position: relative; }
+.dock-wrap::before { content: "Dock preview"; position: absolute; left: 22px; top: 18px; color: rgb(255 255 255 / .85); font: 600 13px/1 -apple-system, system-ui; }
+.dock { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; width: fit-content; max-width: 100%; margin: 0 auto; padding: 10px 14px; border-radius: 24px; background: rgb(255 255 255 / .26); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgb(255 255 255 / .35); }
+.dock a { display: grid; justify-items: center; gap: 4px; text-decoration: none; color: #fff; font: 600 11px/1 -apple-system, system-ui; }
+.dock img { width: 64px; height: 64px; transition: transform .15s ease; }
+.dock a:hover img { transform: translateY(-8px) scale(1.12); }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 20px; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 20px; padding: 18px; display: grid; gap: 14px; min-width: 0; }
+.card.current { border-style: dashed; }
+.card header { display: flex; align-items: baseline; gap: 10px; }
+.num { font: 700 13px/1 ui-monospace, "SF Mono", Menlo, monospace; color: var(--gold); background: color-mix(in srgb, var(--gold) 14%, transparent); padding: 6px 8px; border-radius: 8px; }
+.card h2 { margin: 0; font-size: 20px; letter-spacing: -.01em; }
+.card p { margin: 0; color: var(--muted); }
+.pair { display: grid; grid-template-columns: 1fr 1fr; border-radius: 14px; overflow: hidden; }
+.tile { display: grid; place-items: center; padding: 18px 10px; }
+.tile img { width: 100%; max-width: 170px; height: auto; }
+.tile.light { background: #f6f6f8; }
+.tile.dark { background: #1c1d22; }
+.sizes { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; border-top: 1px solid var(--line); padding-top: 14px; }
+.sizes span { margin-left: auto; color: var(--muted); font: 12px/1 ui-monospace, "SF Mono", Menlo, monospace; }
+code { font: 13px ui-monospace, "SF Mono", Menlo, monospace; }
+.foot { margin-top: 32px; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Your icon, <span>in warmer light.</span></h1>
+  <p class="lede">All ten keep the same idea and make your three changes: a taller window placed higher, the gray line centered as the tabs, and a richer golden beam that diffuses into a halo behind the window. Each one varies the light, the window or the tile. Tell me the number.</p>
+  <section class="dock-wrap" aria-label="All variations in a mock Dock"><nav class="dock"><a href="#icon-0"><img src="00-current.svg" alt="Current"><span>Now</span></a><a href="#icon-1"><img src="01-warm-classic.svg" alt="Warm Classic"><span>1</span></a><a href="#icon-2"><img src="02-amber-bloom.svg" alt="Amber Bloom"><span>2</span></a><a href="#icon-3"><img src="03-soft-haze.svg" alt="Soft Haze"><span>3</span></a><a href="#icon-4"><img src="04-narrow-beam.svg" alt="Narrow Beam"><span>4</span></a><a href="#icon-5"><img src="05-floodlight.svg" alt="Floodlight"><span>5</span></a><a href="#icon-6"><img src="06-tab-capsule.svg" alt="Tab Capsule"><span>6</span></a><a href="#icon-7"><img src="07-rim-light.svg" alt="Rim Light"><span>7</span></a><a href="#icon-8"><img src="08-lamp.svg" alt="Lamp"><span>8</span></a><a href="#icon-9"><img src="09-dusk.svg" alt="Dusk"><span>9</span></a><a href="#icon-10"><img src="10-poster-gold.svg" alt="Poster Gold"><span>10</span></a></nav></section>
+  <section class="grid"><article class="card current" id="icon-0">
+  <header><span class="num">Now</span><h2>Current</h2></header>
+  <div class="pair"><div class="tile light"><img src="00-current.svg" alt="Current on a light background"></div><div class="tile dark"><img src="00-current.svg" alt="Current on a dark background"></div></div>
+  <p>What you have now, for comparison.</p>
+  <div class="sizes"><img src="00-current.svg" alt="" width="96" height="96"><img src="00-current.svg" alt="" width="64" height="64"><img src="00-current.svg" alt="" width="32" height="32"><img src="00-current.svg" alt="" width="16" height="16"><span>96 · 64 · 32 · 16</span></div>
+</article>
+<article class="card" id="icon-1">
+  <header><span class="num">01</span><h2>Warm Classic</h2></header>
+  <div class="pair"><div class="tile light"><img src="01-warm-classic.svg" alt="Warm Classic on a light background"></div><div class="tile dark"><img src="01-warm-classic.svg" alt="Warm Classic on a dark background"></div></div>
+  <p>Your icon with all three changes and nothing else: taller, higher, centered tab line, golden beam and halo.</p>
+  <div class="sizes"><img src="01-warm-classic.svg" alt="" width="96" height="96"><img src="01-warm-classic.svg" alt="" width="64" height="64"><img src="01-warm-classic.svg" alt="" width="32" height="32"><img src="01-warm-classic.svg" alt="" width="16" height="16"><span>96 · 64 · 32 · 16</span></div>
+</article>
+<article class="card" id="icon-2">
+  <header><span class="num">02</span><h2>Amber Bloom</h2></header>
+  <div class="pair"><div class="tile light"><img src="02-amber-bloom.svg" alt="Amber Bloom on a light background"></div><div class="tile dark"><img src="02-amber-bloom.svg" alt="Amber Bloom on a dark background"></div></div>
+  <p>Deeper amber light with a bigger bloom spilling around every edge of the window.</p>
+  <div class="sizes"><img src="02-amber-bloom.svg" alt="" width="96" height="96"><img src="02-amber-bloom.svg" alt="" width="64" height="64"><img src="02-amber-bloom.svg" alt="" width="32" height="32"><img src="02-amber-bloom.svg" alt="" width="16" height="16"><span>96 · 64 · 32 · 16</span></div>
+</article>
+<article class="card" id="icon-3">
+  <header><span class="num">03</span><h2>Soft Haze</h2></header>
+  <div class="pair"><div class="tile light"><img src="03-soft-haze.svg" alt="Soft Haze on a light background"></div><div class="tile dark"><img src="03-soft-haze.svg" alt="Soft Haze on a dark background"></div></div>
+  <p>A very soft, diffused beam, like light through haze. Gentle and calm.</p>
+  <div class="sizes"><img src="03-soft-haze.svg" alt="" width="96" height="96"><img src="03-soft-haze.svg" alt="" width="64" height="64"><img src="03-soft-haze.svg" alt="" width="32" height="32"><img src="03-soft-haze.svg" alt="" width="16" height="16"><span>96 · 64 · 32 · 16</span></div>
+</article>
+<article class="card" id="icon-4">
+  <header><span class="num">04</span><h2>Narrow Beam</h2></header>
+  <div class="pair"><div class="tile light"><img src="04-narrow-beam.svg" alt="Narrow Beam on a light background"></div><div class="tile dark"><img src="04-narrow-beam.svg" alt="Narrow Beam on a dark background"></div></div>
+  <p>A tight beam with a wide halo behind the window, like a single follow spot.</p>
+  <div class="sizes"><img src="04-narrow-beam.svg" alt="" width="96" height="96"><img src="04-narrow-beam.svg" alt="" width="64" height="64"><img src="04-narrow-beam.svg" alt="" width="32" height="32"><img src="04-narrow-beam.svg" alt="" width="16" height="16"><span>96 · 64 · 32 · 16</span></div>
+</article>
+<article class="card" id="icon-5">
+  <header><span class="num">05</span><h2>Floodlight</h2></header>
+  <div class="pair"><div class="tile light"><img src="05-floodlight.svg" alt="Floodlight on a light background"></div><div class="tile dark"><img src="05-floodlight.svg" alt="Floodlight on a dark background"></div></div>
+  <p>A wide wash of light covering the whole window, which sits a touch taller.</p>
+  <div class="sizes"><img src="05-floodlight.svg" alt="" width="96" height="96"><img src="05-floodlight.svg" alt="" width="64" height="64"><img src="05-floodlight.svg" alt="" width="32" height="32"><img src="05-floodlight.svg" alt="" width="16" height="16"><span>96 · 64 · 32 · 16</span></div>
+</article>
+<article class="card" id="icon-6">
+  <header><span class="num">06</span><h2>Tab Capsule</h2></header>
+  <div class="pair"><div class="tile light"><img src="06-tab-capsule.svg" alt="Tab Capsule on a light background"></div><div class="tile dark"><img src="06-tab-capsule.svg" alt="Tab Capsule on a dark background"></div></div>
+  <p>The centered line becomes a fuller tab capsule, so it reads as tabs at small sizes.</p>
+  <div class="sizes"><img src="06-tab-capsule.svg" alt="" width="96" height="96"><img src="06-tab-capsule.svg" alt="" width="64" height="64"><img src="06-tab-capsule.svg" alt="" width="32" height="32"><img src="06-tab-capsule.svg" alt="" width="16" height="16"><span>96 · 64 · 32 · 16</span></div>
+</article>
+<article class="card" id="icon-7">
+  <header><span class="num">07</span><h2>Rim Light</h2></header>
+  <div class="pair"><div class="tile light"><img src="07-rim-light.svg" alt="Rim Light on a light background"></div><div class="tile dark"><img src="07-rim-light.svg" alt="Rim Light on a dark background"></div></div>
+  <p>Warm light catches the window’s top edge, as if the beam is really hitting it.</p>
+  <div class="sizes"><img src="07-rim-light.svg" alt="" width="96" height="96"><img src="07-rim-light.svg" alt="" width="64" height="64"><img src="07-rim-light.svg" alt="" width="32" height="32"><img src="07-rim-light.svg" alt="" width="16" height="16"><span>96 · 64 · 32 · 16</span></div>
+</article>
+<article class="card" id="icon-8">
+  <header><span class="num">08</span><h2>Lamp</h2></header>
+  <div class="pair"><div class="tile light"><img src="08-lamp.svg" alt="Lamp on a light background"></div><div class="tile dark"><img src="08-lamp.svg" alt="Lamp on a dark background"></div></div>
+  <p>The beam comes from a visible stage lamp at the top of the icon.</p>
+  <div class="sizes"><img src="08-lamp.svg" alt="" width="96" height="96"><img src="08-lamp.svg" alt="" width="64" height="64"><img src="08-lamp.svg" alt="" width="32" height="32"><img src="08-lamp.svg" alt="" width="16" height="16"><span>96 · 64 · 32 · 16</span></div>
+</article>
+<article class="card" id="icon-9">
+  <header><span class="num">09</span><h2>Dusk</h2></header>
+  <div class="pair"><div class="tile light"><img src="09-dusk.svg" alt="Dusk on a light background"></div><div class="tile dark"><img src="09-dusk.svg" alt="Dusk on a dark background"></div></div>
+  <p>A slightly warmer, plum-tinted tile so the honey light blends in.</p>
+  <div class="sizes"><img src="09-dusk.svg" alt="" width="96" height="96"><img src="09-dusk.svg" alt="" width="64" height="64"><img src="09-dusk.svg" alt="" width="32" height="32"><img src="09-dusk.svg" alt="" width="16" height="16"><span>96 · 64 · 32 · 16</span></div>
+</article>
+<article class="card" id="icon-10">
+  <header><span class="num">10</span><h2>Poster Gold</h2></header>
+  <div class="pair"><div class="tile light"><img src="10-poster-gold.svg" alt="Poster Gold on a light background"></div><div class="tile dark"><img src="10-poster-gold.svg" alt="Poster Gold on a dark background"></div></div>
+  <p>Darkest tile, saturated yellow light and a crisp white window. The boldest.</p>
+  <div class="sizes"><img src="10-poster-gold.svg" alt="" width="96" height="96"><img src="10-poster-gold.svg" alt="" width="64" height="64"><img src="10-poster-gold.svg" alt="" width="32" height="32"><img src="10-poster-gold.svg" alt="" width="16" height="16"><span>96 · 64 · 32 · 16</span></div>
+</article></section>
+  <p class="foot">Source SVGs are in this folder. Your pick becomes <code>build/icon.svg</code>, <code>icon.png</code> and <code>icon.icns</code>.</p>
+</div>
+</body>
+</html>

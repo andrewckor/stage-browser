@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stage Icons Round 6</title>
+<style>
+:root { --bg: #f4f5f7; --card: #fff; --ink: #111317; --muted: #646a77; --line: #e3e5ea; --red: #ff3b2f; color-scheme: light; }
+@media (prefers-color-scheme: dark) { :root { --bg: #0e0f12; --card: #17191e; --ink: #f2f3f5; --muted: #9aa0ad; --line: #272a31; color-scheme: dark; } }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+.wrap { max-width: 1280px; margin: 0 auto; padding: 48px max(20px, env(safe-area-inset-left)) 80px; }
+h1 { font: 800 clamp(32px, 5vw, 50px)/1.05 -apple-system, system-ui, sans-serif; letter-spacing: -.03em; margin: 0 0 12px; }
+h1 span { color: var(--red); }
+.lede { color: var(--muted); font-size: 17px; max-width: 70ch; margin: 0 0 28px; }
+.dock-wrap { border-radius: 22px; padding: 52px 20px 20px; margin-bottom: 14px; background: linear-gradient(135deg, #24324f, #5b3f6e 50%, #c8775a); position: relative; }
+.dock-wrap.light { background: linear-gradient(135deg, #dfe7f5, #f3e8f0 50%, #f6e3d8); margin-bottom: 32px; }
+.dock-wrap::before { content: attr(data-label); position: absolute; left: 22px; top: 18px; color: rgb(255 255 255 / .85); font: 600 13px/1 -apple-system, system-ui; }
+.dock-wrap.light::before { color: rgb(0 0 0 / .55); }
+.dock { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; width: fit-content; max-width: 100%; margin: 0 auto; padding: 10px 14px; border-radius: 24px; background: rgb(255 255 255 / .26); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgb(255 255 255 / .35); }
+.dock a { display: grid; justify-items: center; gap: 4px; text-decoration: none; color: #fff; font: 600 11px/1 -apple-system, system-ui; }
+.dock-wrap.light .dock a { color: #333; }
+.dock img { width: 56px; height: 56px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 20px; padding: 18px; display: grid; gap: 14px; align-content: start; min-width: 0; }
+.card.ref { border-style: dashed; }
+.card header { display: flex; align-items: baseline; gap: 10px; }
+.num { font: 700 13px/1 ui-monospace, "SF Mono", Menlo, monospace; color: var(--red); background: color-mix(in srgb, var(--red) 12%, transparent); padding: 6px 8px; border-radius: 8px; }
+.card h2 { margin: 0; font-size: 19px; letter-spacing: -.01em; }
+.card p { margin: 0; color: var(--muted); }
+.big { display: grid; place-items: center; background: #2b2d33; border-radius: 14px; padding: 16px; }
+.big img { width: 100%; max-width: 240px; height: auto; }
+.sizes { display: grid; grid-template-columns: 1fr 1fr; border-radius: 12px; overflow: hidden; }
+.sz { display: flex; align-items: flex-end; justify-content: center; gap: 12px; padding: 14px 8px; }
+.sz.light { background: #f6f6f8; } .sz.dark { background: #16171b; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>The stage, a window and <span>a tally that shows.</span></h1>
+  <p class="lede">New directions mixing #6's 3D spotlight, #9's red and a tally light big enough to see at Dock size. Your current icon and last round's Tally light come first for comparison. Under each icon: 64, 32 and 16 px on light and dark.</p>
+  <section class="dock-wrap" data-label="Dock preview, dark wallpaper"><nav class="dock"><a href="#icon-Now"><img src="ref-current.svg" alt="Current"><span>Now</span></a><a href="#icon-Last"><img src="ref-tally.svg" alt="Tally light"><span>Last</span></a><a href="#icon-1"><img src="01-stage-window.svg" alt="Stage Window"><span>1</span></a><a href="#icon-2"><img src="02-stage-window-red.svg" alt="Red Stage"><span>2</span></a><a href="#icon-3"><img src="03-stage-window-tab-dot.svg" alt="Stage, Tally Tab"><span>3</span></a><a href="#icon-4"><img src="04-stage-window-red-bar.svg" alt="Stage, Red Bar"><span>4</span></a><a href="#icon-5"><img src="05-stage-window-plain.svg" alt="Stage, No Red"><span>5</span></a><a href="#icon-6"><img src="06-stage-no-lamp.svg" alt="Stage, No Lamp"><span>6</span></a><a href="#icon-7"><img src="07-big-tally.svg" alt="A, Big Tally"><span>7</span></a><a href="#icon-8"><img src="08-a-red-tile.svg" alt="A on Red"><span>8</span></a><a href="#icon-9"><img src="09-spotlit-capsule.svg" alt="Spotlit Capsule"><span>9</span></a><a href="#icon-10"><img src="10-stage-no-lamp-soft-floor.svg" alt="No Lamp, Soft Floor"><span>10</span></a><a href="#icon-11"><img src="11-stage-no-lamp-mid-floor.svg" alt="No Lamp, Middle Floor"><span>11</span></a><a href="#icon-12"><img src="12-stage-no-lamp-soft-floor-fade.svg" alt="Soft Floor, Beam Dissolves"><span>12</span></a><a href="#icon-13"><img src="13-stage-sharp-to-soft.svg" alt="Sharp to Soft"><span>13</span></a><a href="#icon-14"><img src="14-stage-sharp-to-soft-lighter.svg" alt="Sharp to Soft, 10% Lighter"><span>14</span></a><a href="#icon-15"><img src="15-stage-sharp-to-soft-lighter-20.svg" alt="Sharp to Soft, 20% Lighter"><span>15</span></a><a href="#icon-16"><img src="16-stage-sharp-to-soft-lighter-30.svg" alt="Sharp to Soft, 30% Lighter"><span>16</span></a><a href="#icon-17"><img src="17-stage-sharp-to-soft-30-wide-start.svg" alt="30% Lighter, Wider Start"><span>17</span></a><a href="#icon-18"><img src="18-stage-sharp-to-soft-30-wider-start.svg" alt="30% Lighter, 50% Wider Start"><span>18</span></a><a href="#icon-19"><img src="19-stage-sharp-to-soft-45-wider-start.svg" alt="45% Lighter, 50% Wider Start"><span>19</span></a></nav></section>
+  <section class="dock-wrap light" data-label="Dock preview, light wallpaper"><nav class="dock"><a href="#icon-Now"><img src="ref-current.svg" alt="Current"><span>Now</span></a><a href="#icon-Last"><img src="ref-tally.svg" alt="Tally light"><span>Last</span></a><a href="#icon-1"><img src="01-stage-window.svg" alt="Stage Window"><span>1</span></a><a href="#icon-2"><img src="02-stage-window-red.svg" alt="Red Stage"><span>2</span></a><a href="#icon-3"><img src="03-stage-window-tab-dot.svg" alt="Stage, Tally Tab"><span>3</span></a><a href="#icon-4"><img src="04-stage-window-red-bar.svg" alt="Stage, Red Bar"><span>4</span></a><a href="#icon-5"><img src="05-stage-window-plain.svg" alt="Stage, No Red"><span>5</span></a><a href="#icon-6"><img src="06-stage-no-lamp.svg" alt="Stage, No Lamp"><span>6</span></a><a href="#icon-7"><img src="07-big-tally.svg" alt="A, Big Tally"><span>7</span></a><a href="#icon-8"><img src="08-a-red-tile.svg" alt="A on Red"><span>8</span></a><a href="#icon-9"><img src="09-spotlit-capsule.svg" alt="Spotlit Capsule"><span>9</span></a><a href="#icon-10"><img src="10-stage-no-lamp-soft-floor.svg" alt="No Lamp, Soft Floor"><span>10</span></a><a href="#icon-11"><img src="11-stage-no-lamp-mid-floor.svg" alt="No Lamp, Middle Floor"><span>11</span></a><a href="#icon-12"><img src="12-stage-no-lamp-soft-floor-fade.svg" alt="Soft Floor, Beam Dissolves"><span>12</span></a><a href="#icon-13"><img src="13-stage-sharp-to-soft.svg" alt="Sharp to Soft"><span>13</span></a><a href="#icon-14"><img src="14-stage-sharp-to-soft-lighter.svg" alt="Sharp to Soft, 10% Lighter"><span>14</span></a><a href="#icon-15"><img src="15-stage-sharp-to-soft-lighter-20.svg" alt="Sharp to Soft, 20% Lighter"><span>15</span></a><a href="#icon-16"><img src="16-stage-sharp-to-soft-lighter-30.svg" alt="Sharp to Soft, 30% Lighter"><span>16</span></a><a href="#icon-17"><img src="17-stage-sharp-to-soft-30-wide-start.svg" alt="30% Lighter, Wider Start"><span>17</span></a><a href="#icon-18"><img src="18-stage-sharp-to-soft-30-wider-start.svg" alt="30% Lighter, 50% Wider Start"><span>18</span></a><a href="#icon-19"><img src="19-stage-sharp-to-soft-45-wider-start.svg" alt="45% Lighter, 50% Wider Start"><span>19</span></a></nav></section>
+  <section class="grid"><article class="card ref" id="icon-Now">
+  <header><span class="num">Now</span><h2>Current</h2></header>
+  <div class="big"><img src="ref-current.svg" alt="Current icon"></div>
+  <p>What you have now.</p>
+  <div class="sizes"><div class="sz light"><img src="ref-current.svg" alt="" width="64"><img src="ref-current.svg" alt="" width="32"><img src="ref-current.svg" alt="" width="16"></div><div class="sz dark"><img src="ref-current.svg" alt="" width="64"><img src="ref-current.svg" alt="" width="32"><img src="ref-current.svg" alt="" width="16"></div></div>
+</article>
+<article class="card ref" id="icon-Last">
+  <header><span class="num">Last</span><h2>Tally light</h2></header>
+  <div class="big"><img src="ref-tally.svg" alt="Tally light icon"></div>
+  <p>Last round’s pick, with the small tally.</p>
+  <div class="sizes"><div class="sz light"><img src="ref-tally.svg" alt="" width="64"><img src="ref-tally.svg" alt="" width="32"><img src="ref-tally.svg" alt="" width="16"></div><div class="sz dark"><img src="ref-tally.svg" alt="" width="64"><img src="ref-tally.svg" alt="" width="32"><img src="ref-tally.svg" alt="" width="16"></div></div>
+</article>
+<article class="card" id="icon-1">
+  <header><span class="num">01</span><h2>Stage Window</h2></header>
+  <div class="big"><img src="01-stage-window.svg" alt="Stage Window icon"></div>
+  <p>The 3D stage from #6 with a browser window standing in the light, and a bigger tally light.</p>
+  <div class="sizes"><div class="sz light"><img src="01-stage-window.svg" alt="" width="64"><img src="01-stage-window.svg" alt="" width="32"><img src="01-stage-window.svg" alt="" width="16"></div><div class="sz dark"><img src="01-stage-window.svg" alt="" width="64"><img src="01-stage-window.svg" alt="" width="32"><img src="01-stage-window.svg" alt="" width="16"></div></div>
+</article>
+<article class="card" id="icon-2">
+  <header><span class="num">02</span><h2>Red Stage</h2></header>
+  <div class="big"><img src="02-stage-window-red.svg" alt="Red Stage icon"></div>
+  <p>The same scene on the Capsule red. Unmissable in the Dock.</p>
+  <div class="sizes"><div class="sz light"><img src="02-stage-window-red.svg" alt="" width="64"><img src="02-stage-window-red.svg" alt="" width="32"><img src="02-stage-window-red.svg" alt="" width="16"></div><div class="sz dark"><img src="02-stage-window-red.svg" alt="" width="64"><img src="02-stage-window-red.svg" alt="" width="32"><img src="02-stage-window-red.svg" alt="" width="16"></div></div>
+</article>
+<article class="card" id="icon-3">
+  <header><span class="num">03</span><h2>Stage, Tally Tab</h2></header>
+  <div class="big"><img src="03-stage-window-tab-dot.svg" alt="Stage, Tally Tab icon"></div>
+  <p>The stage scene with the red light leading the tab line, so it reads as part of the tabs.</p>
+  <div class="sizes"><div class="sz light"><img src="03-stage-window-tab-dot.svg" alt="" width="64"><img src="03-stage-window-tab-dot.svg" alt="" width="32"><img src="03-stage-window-tab-dot.svg" alt="" width="16"></div><div class="sz dark"><img src="03-stage-window-tab-dot.svg" alt="" width="64"><img src="03-stage-window-tab-dot.svg" alt="" width="32"><img src="03-stage-window-tab-dot.svg" alt="" width="16"></div></div>
+</article>
+<article class="card" id="icon-4">
+  <header><span class="num">04</span><h2>Stage, Red Bar</h2></header>
+  <div class="big"><img src="04-stage-window-red-bar.svg" alt="Stage, Red Bar icon"></div>
+  <p>The window’s top bar is red. Reads as "a browser" even at 16 px.</p>
+  <div class="sizes"><div class="sz light"><img src="04-stage-window-red-bar.svg" alt="" width="64"><img src="04-stage-window-red-bar.svg" alt="" width="32"><img src="04-stage-window-red-bar.svg" alt="" width="16"></div><div class="sz dark"><img src="04-stage-window-red-bar.svg" alt="" width="64"><img src="04-stage-window-red-bar.svg" alt="" width="32"><img src="04-stage-window-red-bar.svg" alt="" width="16"></div></div>
+</article>
+<article class="card" id="icon-5">
+  <header><span class="num">05</span><h2>Stage, No Red</h2></header>
+  <div class="big"><img src="05-stage-window-plain.svg" alt="Stage, No Red icon"></div>
+  <p>The stage scene with no red at all, to see if it needs it.</p>
+  <div class="sizes"><div class="sz light"><img src="05-stage-window-plain.svg" alt="" width="64"><img src="05-stage-window-plain.svg" alt="" width="32"><img src="05-stage-window-plain.svg" alt="" width="16"></div><div class="sz dark"><img src="05-stage-window-plain.svg" alt="" width="64"><img src="05-stage-window-plain.svg" alt="" width="32"><img src="05-stage-window-plain.svg" alt="" width="16"></div></div>
+</article>
+<article class="card" id="icon-6">
+  <header><span class="num">06</span><h2>Stage, No Lamp</h2></header>
+  <div class="big"><img src="06-stage-no-lamp.svg" alt="Stage, No Lamp icon"></div>
+  <p>#5 exactly, without the lamp: the same cone enters from the top edge, as if the light is just above the frame.</p>
+  <div class="sizes"><div class="sz light"><img src="06-stage-no-lamp.svg" alt="" width="64"><img src="06-stage-no-lamp.svg" alt="" width="32"><img src="06-stage-no-lamp.svg" alt="" width="16"></div><div class="sz dark"><img src="06-stage-no-lamp.svg" alt="" width="64"><img src="06-stage-no-lamp.svg" alt="" width="32"><img src="06-stage-no-lamp.svg" alt="" width="16"></div></div>
+</article>
+<article class="card" id="icon-7">
+  <header><span class="num">07</span><h2>A, Big Tally</h2></header>
+  <div class="big"><img src="07-big-tally.svg" alt="A, Big Tally icon"></div>
+  <p>Your A with the tally light about twice the size, so it survives at 32 px.</p>
+  <div class="sizes"><div class="sz light"><img src="07-big-tally.svg" alt="" width="64"><img src="07-big-tally.svg" alt="" width="32"><img src="07-big-tally.svg" alt="" width="16"></div><div class="sz dark"><img src="07-big-tally.svg" alt="" width="64"><img src="07-big-tally.svg" alt="" width="32"><img src="07-big-tally.svg" alt="" width="16"></div></div>
+</article>
+<article class="card" id="icon-8">
+  <header><span class="num">08</span><h2>A on Red</h2></header>
+  <div class="big"><img src="08-a-red-tile.svg" alt="A on Red icon"></div>
+  <p>Your A composition on the Capsule red, with the tally light.</p>
+  <div class="sizes"><div class="sz light"><img src="08-a-red-tile.svg" alt="" width="64"><img src="08-a-red-tile.svg" alt="" width="32"><img src="08-a-red-tile.svg" alt="" width="16"></div><div class="sz dark"><img src="08-a-red-tile.svg" alt="" width="64"><img src="08-a-red-tile.svg" alt="" width="32"><img src="08-a-red-tile.svg" alt="" width="16"></div></div>
+</article>
+<article class="card" id="icon-9">
+  <header><span class="num">09</span><h2>Spotlit Capsule</h2></header>
+  <div class="big"><img src="09-spotlit-capsule.svg" alt="Spotlit Capsule icon"></div>
+  <p>The Capsule, on its red, standing in the spotlight on the stage floor.</p>
+  <div class="sizes"><div class="sz light"><img src="09-spotlit-capsule.svg" alt="" width="64"><img src="09-spotlit-capsule.svg" alt="" width="32"><img src="09-spotlit-capsule.svg" alt="" width="16"></div><div class="sz dark"><img src="09-spotlit-capsule.svg" alt="" width="64"><img src="09-spotlit-capsule.svg" alt="" width="32"><img src="09-spotlit-capsule.svg" alt="" width="16"></div></div>
+</article>
+<article class="card" id="icon-10">
+  <header><span class="num">10</span><h2>No Lamp, Soft Floor</h2></header>
+  <div class="big"><img src="10-stage-no-lamp-soft-floor.svg" alt="No Lamp, Soft Floor icon"></div>
+  <p>The no-lamp version with a more subtle, diffused light on the floor.</p>
+  <div class="sizes"><div class="sz light"><img src="10-stage-no-lamp-soft-floor.svg" alt="" width="64"><img src="10-stage-no-lamp-soft-floor.svg" alt="" width="32"><img src="10-stage-no-lamp-soft-floor.svg" alt="" width="16"></div><div class="sz dark"><img src="10-stage-no-lamp-soft-floor.svg" alt="" width="64"><img src="10-stage-no-lamp-soft-floor.svg" alt="" width="32"><img src="10-stage-no-lamp-soft-floor.svg" alt="" width="16"></div></div>
+</article>
+<article class="card" id="icon-11">
+  <header><span class="num">11</span><h2>No Lamp, Middle Floor</h2></header>
+  <div class="big"><img src="11-stage-no-lamp-mid-floor.svg" alt="No Lamp, Middle Floor icon"></div>
+  <p>Floor light halfway between the brighter and the softer versions.</p>
+  <div class="sizes"><div class="sz light"><img src="11-stage-no-lamp-mid-floor.svg" alt="" width="64"><img src="11-stage-no-lamp-mid-floor.svg" alt="" width="32"><img src="11-stage-no-lamp-mid-floor.svg" alt="" width="16"></div><div class="sz dark"><img src="11-stage-no-lamp-mid-floor.svg" alt="" width="64"><img src="11-stage-no-lamp-mid-floor.svg" alt="" width="32"><img src="11-stage-no-lamp-mid-floor.svg" alt="" width="16"></div></div>
+</article>
+<article class="card" id="icon-12">
+  <header><span class="num">12</span><h2>Soft Floor, Beam Dissolves</h2></header>
+  <div class="big"><img src="12-stage-no-lamp-soft-floor-fade.svg" alt="Soft Floor, Beam Dissolves icon"></div>
+  <p>The softer floor, with the beam fading out at the bottom so its corners never show.</p>
+  <div class="sizes"><div class="sz light"><img src="12-stage-no-lamp-soft-floor-fade.svg" alt="" width="64"><img src="12-stage-no-lamp-soft-floor-fade.svg" alt="" width="32"><img src="12-stage-no-lamp-soft-floor-fade.svg" alt="" width="16"></div><div class="sz dark"><img src="12-stage-no-lamp-soft-floor-fade.svg" alt="" width="64"><img src="12-stage-no-lamp-soft-floor-fade.svg" alt="" width="32"><img src="12-stage-no-lamp-soft-floor-fade.svg" alt="" width="16"></div></div>
+</article>
+<article class="card" id="icon-13">
+  <header><span class="num">13</span><h2>Sharp to Soft</h2></header>
+  <div class="big"><img src="13-stage-sharp-to-soft.svg" alt="Sharp to Soft icon"></div>
+  <p>The beam starts sharp at the top and gets gradually blurrier toward the bottom, then dissolves.</p>
+  <div class="sizes"><div class="sz light"><img src="13-stage-sharp-to-soft.svg" alt="" width="64"><img src="13-stage-sharp-to-soft.svg" alt="" width="32"><img src="13-stage-sharp-to-soft.svg" alt="" width="16"></div><div class="sz dark"><img src="13-stage-sharp-to-soft.svg" alt="" width="64"><img src="13-stage-sharp-to-soft.svg" alt="" width="32"><img src="13-stage-sharp-to-soft.svg" alt="" width="16"></div></div>
+</article>
+<article class="card" id="icon-14">
+  <header><span class="num">14</span><h2>Sharp to Soft, 10% Lighter</h2></header>
+  <div class="big"><img src="14-stage-sharp-to-soft-lighter.svg" alt="Sharp to Soft, 10% Lighter icon"></div>
+  <p>Sharp to Soft with the beam 10% more transparent.</p>
+  <div class="sizes"><div class="sz light"><img src="14-stage-sharp-to-soft-lighter.svg" alt="" width="64"><img src="14-stage-sharp-to-soft-lighter.svg" alt="" width="32"><img src="14-stage-sharp-to-soft-lighter.svg" alt="" width="16"></div><div class="sz dark"><img src="14-stage-sharp-to-soft-lighter.svg" alt="" width="64"><img src="14-stage-sharp-to-soft-lighter.svg" alt="" width="32"><img src="14-stage-sharp-to-soft-lighter.svg" alt="" width="16"></div></div>
+</article>
+<article class="card" id="icon-15">
+  <header><span class="num">15</span><h2>Sharp to Soft, 20% Lighter</h2></header>
+  <div class="big"><img src="15-stage-sharp-to-soft-lighter-20.svg" alt="Sharp to Soft, 20% Lighter icon"></div>
+  <p>Sharp to Soft with the beam 20% more transparent.</p>
+  <div class="sizes"><div class="sz light"><img src="15-stage-sharp-to-soft-lighter-20.svg" alt="" width="64"><img src="15-stage-sharp-to-soft-lighter-20.svg" alt="" width="32"><img src="15-stage-sharp-to-soft-lighter-20.svg" alt="" width="16"></div><div class="sz dark"><img src="15-stage-sharp-to-soft-lighter-20.svg" alt="" width="64"><img src="15-stage-sharp-to-soft-lighter-20.svg" alt="" width="32"><img src="15-stage-sharp-to-soft-lighter-20.svg" alt="" width="16"></div></div>
+</article>
+<article class="card" id="icon-16">
+  <header><span class="num">16</span><h2>Sharp to Soft, 30% Lighter</h2></header>
+  <div class="big"><img src="16-stage-sharp-to-soft-lighter-30.svg" alt="Sharp to Soft, 30% Lighter icon"></div>
+  <p>Sharp to Soft with the beam 30% more transparent.</p>
+  <div class="sizes"><div class="sz light"><img src="16-stage-sharp-to-soft-lighter-30.svg" alt="" width="64"><img src="16-stage-sharp-to-soft-lighter-30.svg" alt="" width="32"><img src="16-stage-sharp-to-soft-lighter-30.svg" alt="" width="16"></div><div class="sz dark"><img src="16-stage-sharp-to-soft-lighter-30.svg" alt="" width="64"><img src="16-stage-sharp-to-soft-lighter-30.svg" alt="" width="32"><img src="16-stage-sharp-to-soft-lighter-30.svg" alt="" width="16"></div></div>
+</article>
+<article class="card" id="icon-17">
+  <header><span class="num">17</span><h2>30% Lighter, Wider Start</h2></header>
+  <div class="big"><img src="17-stage-sharp-to-soft-30-wide-start.svg" alt="30% Lighter, Wider Start icon"></div>
+  <p>The 30% version with the beam 15% wider where it starts at the top.</p>
+  <div class="sizes"><div class="sz light"><img src="17-stage-sharp-to-soft-30-wide-start.svg" alt="" width="64"><img src="17-stage-sharp-to-soft-30-wide-start.svg" alt="" width="32"><img src="17-stage-sharp-to-soft-30-wide-start.svg" alt="" width="16"></div><div class="sz dark"><img src="17-stage-sharp-to-soft-30-wide-start.svg" alt="" width="64"><img src="17-stage-sharp-to-soft-30-wide-start.svg" alt="" width="32"><img src="17-stage-sharp-to-soft-30-wide-start.svg" alt="" width="16"></div></div>
+</article>
+<article class="card" id="icon-18">
+  <header><span class="num">18</span><h2>30% Lighter, 50% Wider Start</h2></header>
+  <div class="big"><img src="18-stage-sharp-to-soft-30-wider-start.svg" alt="30% Lighter, 50% Wider Start icon"></div>
+  <p>The 30% version with the beam 50% wider where it starts at the top.</p>
+  <div class="sizes"><div class="sz light"><img src="18-stage-sharp-to-soft-30-wider-start.svg" alt="" width="64"><img src="18-stage-sharp-to-soft-30-wider-start.svg" alt="" width="32"><img src="18-stage-sharp-to-soft-30-wider-start.svg" alt="" width="16"></div><div class="sz dark"><img src="18-stage-sharp-to-soft-30-wider-start.svg" alt="" width="64"><img src="18-stage-sharp-to-soft-30-wider-start.svg" alt="" width="32"><img src="18-stage-sharp-to-soft-30-wider-start.svg" alt="" width="16"></div></div>
+</article>
+<article class="card" id="icon-19">
+  <header><span class="num">19</span><h2>45% Lighter, 50% Wider Start</h2></header>
+  <div class="big"><img src="19-stage-sharp-to-soft-45-wider-start.svg" alt="45% Lighter, 50% Wider Start icon"></div>
+  <p>The 50% wider start with the beam 45% more transparent.</p>
+  <div class="sizes"><div class="sz light"><img src="19-stage-sharp-to-soft-45-wider-start.svg" alt="" width="64"><img src="19-stage-sharp-to-soft-45-wider-start.svg" alt="" width="32"><img src="19-stage-sharp-to-soft-45-wider-start.svg" alt="" width="16"></div><div class="sz dark"><img src="19-stage-sharp-to-soft-45-wider-start.svg" alt="" width="64"><img src="19-stage-sharp-to-soft-45-wider-start.svg" alt="" width="32"><img src="19-stage-sharp-to-soft-45-wider-start.svg" alt="" width="16"></div></div>
+</article></section>
+</div>
+</body>
+</html>

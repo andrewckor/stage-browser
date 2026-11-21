@@ -1,0 +1,617 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Stage Browser</title>
+<meta name="description" content="Stage is a minimal Chromium browser for screen sharing. The page fills the window and the tabs stay hidden until you reach for them.">
+<link rel="icon" href="icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a pop poster. Huge expanded headlines in black with red pop, real websites running inside
+   Stage windows, red halftone shadows, red tab lines. One 1240px column, sections stacked. */
+:root {
+  --paper: #ffffff;
+  --ink: #0b0b0d;
+  --muted: #5b5e68;
+  --line: #e2e3e8;
+  --soft: #f3f4f6;
+  --pop: #ff3b2f;
+  --pop-ink: #ffffff;
+  --capsule: rgb(248 248 250 / .97);
+  --capsule-line: rgb(0 0 0 / .09);
+  --capsule-ink: #1d1d1f;
+  --capsule-muted: #6e6e73;
+  --tab-on: #ffffff;
+  --tab-hover: rgb(0 0 0 / .05);
+  --frame-shadow: 0 1px 2px rgb(0 0 0 / .08), 0 24px 60px -24px rgb(0 0 0 / .35);
+  --display: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --body: "Archivo", -apple-system, "Segoe UI", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #0b0b0d; --ink: #f5f5f2; --muted: #a2a5ae; --line: #25262c; --soft: #16171b;
+    --pop: #ff4a3d;
+    --capsule: rgb(28 29 34 / .96); --capsule-line: rgb(255 255 255 / .09); --capsule-ink: #f3f4f7; --capsule-muted: #979bab;
+    --tab-on: rgb(255 255 255 / .13); --tab-hover: rgb(255 255 255 / .06);
+    --frame-shadow: 0 1px 2px rgb(0 0 0 / .5), 0 30px 70px -24px rgb(0 0 0 / .9);
+    color-scheme: dark;
+  }
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+img { max-width: 100%; display: block; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0; background: var(--paper); color: var(--ink);
+  font: 400 17px/1.55 var(--body); -webkit-font-smoothing: antialiased;
+  overflow-x: clip;
+}
+a { color: inherit; }
+:focus-visible { outline: 3px solid var(--pop); outline-offset: 3px; border-radius: 4px; }
+code, kbd, pre { font-family: var(--mono); }
+code { font-size: .88em; }
+kbd { font-size: .78em; padding: .2em .5em; border-radius: 6px; border: 1px solid var(--line); border-bottom-width: 2px; background: var(--soft); white-space: nowrap; }
+p { margin: 0; }
+.wrap {
+  max-width: 1240px; margin: 0 auto;
+  padding-left: max(20px, env(safe-area-inset-left, 0px)); padding-right: max(20px, env(safe-area-inset-right, 0px));
+}
+.display {
+  font-family: var(--display); font-weight: 900; font-stretch: 118%;
+  text-transform: uppercase; line-height: .86; letter-spacing: -.025em; margin: 0; text-wrap: balance;
+}
+.pop { color: var(--pop); }
+
+/* ---------- top bar ---------- */
+.top { display: flex; align-items: center; gap: 28px; padding-block: 20px; }
+.brand { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; font: 900 22px/1 var(--display); font-stretch: 118%; text-transform: uppercase; letter-spacing: -.01em; }
+.brand img { width: 30px; height: 30px; }
+.top nav { display: flex; gap: 24px; margin-left: auto; font-size: 15px; font-weight: 500; }
+.top nav a { text-decoration: none; color: var(--muted); }
+.top nav a:hover { color: var(--ink); }
+.pill { display: inline-flex; align-items: center; padding: 10px 18px; border-radius: 999px; background: var(--pop); color: var(--pop-ink); font: 700 15px/1 var(--body); text-decoration: none; }
+.pill:hover { filter: brightness(1.06); }
+@media (max-width: 760px) { .top nav { display: none; } .top .pill { margin-left: auto; } }
+
+/* ---------- hero ---------- */
+.hero { display: grid; gap: 28px; padding-block: clamp(28px, 6vw, 64px) 0; }
+.hero h1 { font-size: clamp(52px, 10.2vw, 148px); }
+.hero h1 span { display: block; }
+.hero .lede { font-size: clamp(18px, 1.9vw, 22px); max-width: 46ch; color: var(--muted); }
+.hero .lede strong { color: var(--ink); font-weight: 600; }
+.hero-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 24px 48px; align-items: end; }
+@media (max-width: 900px) { .hero-row { grid-template-columns: 1fr; } }
+.cmd { display: flex; align-items: center; gap: 4px; background: var(--ink); color: var(--paper); border-radius: 12px; padding: 7px 7px 7px 18px; max-width: 100%; min-width: 0; }
+.cmd code { font-size: 15px; white-space: nowrap; overflow-x: auto; scrollbar-width: none; min-width: 0; }
+.cmd code::before { content: "$ "; opacity: .5; }
+.copy { flex: none; font: 600 13px/1 var(--body); color: var(--paper); background: color-mix(in srgb, var(--paper) 14%, transparent); border: 0; border-radius: 8px; padding: 10px 13px; cursor: pointer; }
+.copy:hover { background: color-mix(in srgb, var(--paper) 24%, transparent); }
+
+/* ---------- Stage window (demo + frames) ---------- */
+.halftone { position: relative; isolation: isolate; }
+.halftone::before {
+  content: ""; position: absolute; z-index: -1; inset: 18px -16px -18px 16px; border-radius: 18px;
+  background: radial-gradient(var(--pop) 1.7px, transparent 2px) 0 0 / 10px 10px;
+}
+@media (max-width: 600px) { .halftone::before { inset: 10px -8px -10px 8px; } }
+.window {
+  position: relative; container-type: inline-size; aspect-ratio: 16 / 10; width: 100%;
+  border-radius: 14px; overflow: hidden; background: #fff; box-shadow: var(--frame-shadow), 0 0 0 1px var(--capsule-line);
+  touch-action: manipulation;
+}
+.shot { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: top center; opacity: 0; transition: opacity .22s ease; }
+.shot.on { opacity: 1; }
+.tabline {
+  position: absolute; z-index: 3; inset: 0 0 auto; height: 4px;
+  background: linear-gradient(90deg, transparent, var(--pop) 22%, var(--pop) 78%, transparent);
+}
+.window .tabline { animation: breathe 2.8s ease-in-out infinite; transition: opacity .2s; }
+.window.revealed .tabline { opacity: 0; animation: none; }
+@keyframes breathe { 50% { opacity: .25; } }
+.strip { position: absolute; z-index: 4; inset: 0 0 auto; height: 52px; display: flex; justify-content: center; align-items: flex-start; padding: 8px 12px 0 84px; pointer-events: none; }
+.lights { position: absolute; left: 18px; top: 20px; display: flex; gap: 8px; opacity: 0; transition: opacity .16s; }
+.lights i { width: 12px; height: 12px; border-radius: 50%; background: #ff5f57; }
+.lights i:nth-child(2) { background: #febc2e; }
+.lights i:nth-child(3) { background: #28c840; }
+.capsule {
+  display: flex; align-items: center; gap: 2px; height: 36px; max-width: 100%; min-width: 0;
+  padding: 4px; border-radius: 12px; background: var(--capsule); color: var(--capsule-ink);
+  border: .5px solid var(--capsule-line); box-shadow: 0 1px 2px rgb(0 0 0 / .1), 0 8px 20px -6px rgb(0 0 0 / .35);
+  font: 500 13px/1 -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+  opacity: 0; transform: translateY(-10px); pointer-events: none;
+  transition: opacity 120ms ease-in, transform 120ms ease-in;
+}
+.window.revealed .lights, .window.static .lights { opacity: 1; }
+.window.revealed .capsule, .window.static .capsule {
+  opacity: 1; transform: none; pointer-events: auto;
+  transition: opacity 160ms cubic-bezier(.2,.8,.2,1), transform 160ms cubic-bezier(.2,.8,.2,1);
+}
+.tabs { display: flex; gap: 2px; min-width: 0; }
+.tab { display: flex; align-items: center; gap: 8px; height: 28px; min-width: 0; width: 168px; padding: 0 6px 0 8px; border: 0; border-radius: 8px; background: transparent; color: var(--capsule-muted); font: inherit; cursor: default; text-align: left; }
+.tab:hover { background: var(--tab-hover); }
+.tab.active { background: var(--tab-on); color: var(--capsule-ink); box-shadow: 0 1px 2px rgb(0 0 0 / .08); }
+.fav { flex: none; width: 16px; height: 16px; border-radius: 4px; display: grid; place-items: center; background: var(--c); color: var(--fc, #fff); font: 800 9px/1 var(--body); }
+.tab .t { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; mask-image: linear-gradient(90deg, #000 80%, transparent); }
+.tab .x { flex: none; width: 16px; height: 16px; border-radius: 4px; display: grid; place-items: center; font-size: 14px; opacity: 0; }
+.tab:hover .x, .tab.active .x { opacity: .7; }
+.tab .x:hover { background: var(--tab-hover); opacity: 1; }
+.cap-btn { flex: none; width: 28px; height: 28px; border: 0; border-radius: 7px; background: transparent; color: var(--capsule-muted); display: grid; place-items: center; cursor: default; }
+.cap-btn:hover { background: var(--tab-hover); color: var(--capsule-ink); }
+.cap-sep { width: 1px; height: 16px; background: var(--capsule-line); margin: 0 4px; flex: none; }
+.ext { width: 18px; height: 18px; border-radius: 5px; background: #2b4cc8; color: #fff; display: grid; place-items: center; font: 800 10px/1 var(--body); }
+@container (max-width: 700px) {
+  .strip { padding-left: 64px; }
+  .lights { left: 12px; gap: 6px; }
+  .tab { width: auto; padding: 0 6px; }
+  .tab .t, .tab .x { display: none; }
+  .tab.active .t { display: block; max-width: 90px; }
+}
+.viewport { position: absolute; inset: 0; overflow: hidden; transition: top .2s ease; }
+.ghost { position: absolute; z-index: 5; left: 62%; top: 66%; width: 22px; height: 22px; opacity: 0; pointer-events: none; filter: drop-shadow(0 1px 2px rgb(0 0 0 / .4)); }
+.ghost.go { animation: ghost-up 900ms cubic-bezier(.45,0,.2,1) forwards; }
+.ghost.back { animation: ghost-down 700ms ease-in forwards; }
+@keyframes ghost-up { 0% { opacity: 0; } 18% { opacity: 1; } 100% { opacity: 1; top: 3px; } }
+@keyframes ghost-down { 0% { opacity: 1; top: 3px; } 100% { opacity: 0; top: 40%; } }
+
+.demo { display: grid; gap: 18px; margin-top: clamp(16px, 3vw, 32px); }
+.demo-caption { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px 16px; font-size: 15px; color: var(--muted); }
+.demo-caption b { color: var(--pop); }
+.ghost-btn { font: 600 14px/1 var(--body); color: var(--ink); background: none; border: 1.5px solid var(--ink); border-radius: 999px; padding: 9px 15px; cursor: pointer; }
+.ghost-btn:hover { background: var(--ink); color: var(--paper); }
+
+/* ---------- sections ---------- */
+.section { display: grid; gap: clamp(24px, 3vw, 40px); padding-block: clamp(80px, 11vw, 150px) 0; scroll-margin-top: 12px; }
+.section h2 { font-size: clamp(44px, 7.6vw, 112px); }
+.section .lede { font-size: clamp(17px, 1.6vw, 20px); color: var(--muted); max-width: 58ch; }
+
+/* same site, two windows */
+.versus { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: clamp(20px, 3vw, 40px); align-items: end; }
+@media (max-width: 820px) { .versus { grid-template-columns: 1fr; } }
+.vs-col { display: grid; gap: 16px; min-width: 0; }
+.vs-col h3 { font-size: clamp(28px, 3.6vw, 52px); }
+.vs-col h3.muted { color: var(--muted); }
+.vs-col p { color: var(--muted); font-size: 16px; max-width: 46ch; }
+.frame { position: relative; container-type: inline-size; aspect-ratio: 16 / 10; border-radius: 12px; overflow: hidden; background: #fff; box-shadow: var(--frame-shadow), 0 0 0 1px var(--capsule-line); display: flex; flex-direction: column; }
+.frame img { flex: 1; min-height: 0; width: 100%; object-fit: cover; object-position: top center; }
+.chrome { flex: none; background: #dee1e7; color: #3c4043; font: 500 1.05cqw/1 -apple-system, system-ui, sans-serif; }
+.c-tabs { display: flex; gap: .3cqw; padding: .8cqw .8cqw 0 6.2cqw; position: relative; height: 3.4cqw; }
+.c-tabs::before { content: ""; position: absolute; left: 1.4cqw; top: 1.4cqw; width: 4cqw; height: 1cqw; background: radial-gradient(circle at .5cqw 50%, #ff5f57 .45cqw, transparent .5cqw), radial-gradient(circle at 2cqw 50%, #febc2e .45cqw, transparent .5cqw), radial-gradient(circle at 3.5cqw 50%, #28c840 .45cqw, transparent .5cqw); }
+.c-tab { flex: 1 1 0; min-width: 0; display: flex; align-items: center; gap: .5cqw; padding: 0 .7cqw; border-radius: .6cqw .6cqw 0 0; background: #cfd3db; white-space: nowrap; overflow: hidden; }
+.c-tab i { flex: none; width: 1.1cqw; height: 1.1cqw; border-radius: .25cqw; background: var(--c, #8a8f98); }
+.c-tab.on { background: #fff; flex-grow: 1.6; }
+.c-bar { display: flex; align-items: center; gap: .6cqw; height: 3cqw; padding: 0 .9cqw; background: #fff; }
+.c-url { flex: 1; height: 2cqw; border-radius: 1cqw; background: #eef0f3; display: flex; align-items: center; padding: 0 1cqw; color: #5f6368; }
+.c-ext { flex: none; width: 1.4cqw; height: 1.4cqw; border-radius: .35cqw; background: var(--c); position: relative; }
+.c-ext.badge::after { content: "3"; position: absolute; right: -.5cqw; top: -.55cqw; font: 700 .8cqw/1.1cqw sans-serif; color: #fff; background: #e0245e; border-radius: .4cqw; padding: 0 .25cqw; }
+.c-avatar { flex: none; width: 1.8cqw; height: 1.8cqw; border-radius: 50%; background: #c8a27c; }
+.c-bm { display: flex; gap: 1.1cqw; height: 2.2cqw; align-items: center; padding: 0 1cqw; background: #fff; border-bottom: 1px solid #e3e5ea; color: #5f6368; white-space: nowrap; overflow: hidden; }
+.c-bm span::before { content: ""; display: inline-block; width: .9cqw; height: .9cqw; border-radius: .2cqw; background: #c4c9d2; margin-right: .4cqw; vertical-align: -.1cqw; }
+.frame .tabline { height: .45cqw; min-height: 3px; }
+.stat { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px 28px; align-items: center; padding-top: 28px; border-top: 2px solid var(--ink); }
+.stat b { font: 900 clamp(64px, 9vw, 128px)/.85 var(--display); font-stretch: 118%; color: var(--pop); letter-spacing: -.03em; }
+.stat p { font-size: clamp(17px, 1.7vw, 21px); color: var(--muted); max-width: 52ch; }
+.stat p strong { color: var(--ink); font-weight: 600; }
+@media (max-width: 620px) { .stat { grid-template-columns: 1fr; } }
+
+/* wall of real sites */
+.wall { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: clamp(16px, 2.4vw, 32px); }
+@media (max-width: 720px) { .wall { grid-template-columns: 1fr; } }
+.tile { display: grid; gap: 12px; margin: 0; min-width: 0; }
+.tile figcaption { display: flex; justify-content: space-between; gap: 12px; font: 500 13px/1.3 var(--mono); color: var(--muted); }
+.tile figcaption b { color: var(--ink); font-weight: 500; }
+
+/* run of show */
+.cues { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: clamp(20px, 3vw, 40px); counter-reset: cue; }
+@media (max-width: 900px) { .cues { grid-template-columns: 1fr; } }
+.cues li { counter-increment: cue; display: grid; gap: 14px; align-content: start; min-width: 0; padding-top: 20px; border-top: 2px solid var(--ink); }
+.cues li::before { content: counter(cue); font: 900 clamp(88px, 10vw, 140px)/.8 var(--display); font-stretch: 118%; color: var(--pop); }
+.cues .tag { font: 500 12.5px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--pop); }
+.cues h3 { font: 800 clamp(22px, 2.2vw, 28px)/1.15 var(--display); font-stretch: 105%; margin: 0; letter-spacing: -.01em; }
+.cues p { color: var(--muted); font-size: 16px; }
+.cues .cmd { padding: 12px 14px; }
+.cues .cmd code { font-size: 13px; white-space: pre; }
+
+/* features as big rows */
+.rows { border-top: 2px solid var(--ink); }
+.row { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 12px 40px; align-items: baseline; padding-block: 22px; border-bottom: 1px solid var(--line); }
+.row h3 { font-size: clamp(26px, 3.6vw, 50px); }
+.row p { color: var(--muted); font-size: 17px; }
+@media (max-width: 760px) { .row { grid-template-columns: 1fr; } }
+
+/* shortcuts */
+.keys-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border-top: 2px solid var(--ink); }
+@media (max-width: 760px) { .keys-grid { grid-template-columns: 1fr; } }
+.key-row { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 16px; align-items: center; padding: 14px 0; border-bottom: 1px solid var(--line); }
+.key-row:nth-child(odd) { padding-right: 24px; }
+.key-row span:last-child { color: var(--muted); font-size: 16px; }
+.k { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+
+/* install */
+.installs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+@media (max-width: 760px) { .installs { grid-template-columns: 1fr; } }
+.install { display: grid; gap: 12px; min-width: 0; }
+.install h3 { font: 800 20px/1.2 var(--display); font-stretch: 105%; margin: 0; }
+.install p { color: var(--muted); font-size: 15.5px; }
+.note { color: var(--muted); font-size: 15px; }
+
+/* faq */
+.faq { border-top: 2px solid var(--ink); }
+.faq details { border-bottom: 1px solid var(--line); }
+.faq summary { cursor: pointer; list-style: none; display: flex; justify-content: space-between; gap: 16px; padding: 20px 0; font: 800 clamp(19px, 2vw, 24px)/1.25 var(--display); font-stretch: 105%; }
+.faq summary::-webkit-details-marker { display: none; }
+.faq summary::after { content: "+"; color: var(--pop); font-weight: 900; transition: transform .2s; }
+.faq details[open] summary::after { transform: rotate(45deg); }
+.faq details p { color: var(--muted); padding-bottom: 22px; max-width: 66ch; }
+
+/* footer */
+footer { padding-block: clamp(96px, 12vw, 160px) 32px; overflow: hidden; }
+.mega { font-size: min(23vw, 330px); line-height: .78; color: transparent; -webkit-text-stroke: 2px var(--ink); margin: 0 0 28px -.04em; white-space: nowrap; }
+.foot { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; color: var(--muted); font-size: 14px; padding-top: 20px; border-top: 1px solid var(--line); }
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .window .tabline { animation: none; }
+  .capsule, .window.revealed .capsule, .viewport, .lights, .shot { transition: none; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <a class="brand" href="#top"><img src="icon.png" alt="" width="30" height="30">Stage</a>
+    <nav aria-label="Sections">
+      <a href="#value">Why</a>
+      <a href="#run-of-show">How it works</a>
+      <a href="#features">Features</a>
+      <a href="#shortcuts">Shortcuts</a>
+    </nav>
+    <a class="pill" href="#install">Install</a>
+  </header>
+
+  <main id="top">
+    <section class="hero" aria-labelledby="hero-title">
+      <h1 id="hero-title" class="display"><span>Nothing but</span><span>the <span class="pop" style="display:inline">page.</span></span></h1>
+      <div class="hero-row">
+        <p class="lede">Stage is a minimal Chromium browser for workshops, webinars and demos. <strong>Share the window and your audience sees the site, edge to edge.</strong> Your tabs wait behind the top edge until you reach for them.</p>
+        <div class="cmd"><code>npx stage-browser https://example.com</code><button class="copy" type="button" data-copy="npx stage-browser https://example.com">Copy</button></div>
+      </div>
+
+      <figure class="demo" style="margin-inline:0;margin-bottom:0">
+        <div class="halftone">
+          <div class="window" id="win" aria-label="Interactive demo: Stage with four websites open">
+            <div class="tabline" aria-hidden="true"></div>
+            <div class="strip" id="strip">
+              <span class="lights" aria-hidden="true"><i></i><i></i><i></i></span>
+              <div class="capsule" id="capsule">
+                <div class="tabs" role="tablist" aria-label="Demo tabs">
+                  <button class="tab active" type="button" role="tab" aria-selected="true" data-shot="wikipedia"><span class="fav" style="--c:#fff;--fc:#000;box-shadow:inset 0 0 0 1px #d0d0d0">W</span><span class="t">Web conferencing · Wikipedia</span><span class="x" aria-hidden="true">×</span></button>
+                  <button class="tab" type="button" role="tab" aria-selected="false" data-shot="w3c"><span class="fav" style="--c:#005a9c">W3</span><span class="t">Screen Capture · W3C</span><span class="x" aria-hidden="true">×</span></button>
+                  <button class="tab" type="button" role="tab" aria-selected="false" data-shot="electron"><span class="fav" style="--c:#2b2e3a;--fc:#9feaf9">E</span><span class="t">Electron</span><span class="x" aria-hidden="true">×</span></button>
+                  <button class="tab" type="button" role="tab" aria-selected="false" data-shot="github"><span class="fav" style="--c:#1f2328">G</span><span class="t">electron/electron · GitHub</span><span class="x" aria-hidden="true">×</span></button>
+                </div>
+                <button class="cap-btn" id="add" type="button" aria-label="Reopen a closed tab" title="New tab">
+                  <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3.5v9M3.5 8h9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+                </button>
+                <span class="cap-sep" aria-hidden="true"></span>
+                <span class="cap-btn" title="An installed extension" aria-hidden="true"><span class="ext">O</span></span>
+              </div>
+            </div>
+            <div class="viewport">
+              <img class="shot on" data-shot="wikipedia" src="../shots/wikipedia.jpg" alt="Wikipedia's Web conferencing article filling the Stage window">
+              <img class="shot" data-shot="w3c" src="../shots/w3c.jpg" alt="The W3C Screen Capture specification filling the Stage window">
+              <img class="shot" data-shot="electron" src="../shots/electron.jpg" alt="The Electron website filling the Stage window">
+              <img class="shot" data-shot="github" src="../shots/github.jpg" alt="The electron/electron GitHub repository filling the Stage window">
+            </div>
+            <svg class="ghost" id="ghost" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 2l13 7.2-5.6 1.2L13.6 17l-2.4 1-3.2-6.5L3.6 15z" fill="#fff" stroke="#111" stroke-width="1.2" stroke-linejoin="round"/></svg>
+          </div>
+        </div>
+        <figcaption class="demo-caption">
+          <span><b>↑</b> Move your pointer to the red line at the top of the window. Four real sites are open.</span>
+          <button class="ghost-btn" id="toggle" type="button" aria-controls="strip" aria-expanded="false">Show tabs</button>
+        </figcaption>
+      </figure>
+    </section>
+
+    <section class="section" id="value" aria-labelledby="value-title">
+      <h2 id="value-title" class="display">Same site.<br>Two <span class="pop">windows.</span></h2>
+      <div class="versus">
+        <div class="vs-col">
+          <h3 class="display muted">Your browser</h3>
+          <div class="frame" aria-hidden="true">
+            <div class="chrome">
+              <div class="c-tabs">
+                <span class="c-tab" style="--c:#ea4335"><i></i>Inbox (214)</span>
+                <span class="c-tab" style="--c:#4285f4"><i></i>Performance review – draft</span>
+                <span class="c-tab on" style="--c:#1f2328"><i></i>electron/electron</span>
+                <span class="c-tab" style="--c:#0a66c2"><i></i>Jira: 37 open</span>
+                <span class="c-tab" style="--c:#ff7a59"><i></i>Flights to Lisbon</span>
+                <span class="c-tab" style="--c:#34a853"><i></i>Budget 2027.xlsx</span>
+                <span class="c-tab" style="--c:#7b61ff"><i></i>Slack | 3 new</span>
+              </div>
+              <div class="c-bar">
+                <span class="c-url">github.com/electron/electron</span>
+                <i class="c-ext" style="--c:#7aa7ff"></i><i class="c-ext" style="--c:#f2b84b"></i><i class="c-ext badge" style="--c:#4a154b"></i><i class="c-ext" style="--c:#2b4cc8"></i><i class="c-ext" style="--c:#34a853"></i><i class="c-ext" style="--c:#ff7a59"></i><i class="c-ext" style="--c:#9aa0ab"></i><i class="c-ext" style="--c:#6b5cff"></i>
+                <i class="c-avatar"></i>
+              </div>
+              <div class="c-bm"><span>Payroll</span><span>1:1 notes</span><span>Expenses</span><span>Team OKRs</span><span>Recipes</span><span>Side project</span><span>Bank</span><span>Reading list</span></div>
+            </div>
+            <img src="../shots/github.jpg" alt="">
+          </div>
+          <p>Every tab title, extension badge and bookmark goes out on the call with the page.</p>
+        </div>
+        <div class="vs-col">
+          <h3 class="display pop">Stage</h3>
+          <div class="frame" aria-hidden="true">
+            <div class="tabline"></div>
+            <img src="../shots/github.jpg" alt="">
+          </div>
+          <p>The same page, edge to edge. The red line is where your tabs wait.</p>
+        </div>
+      </div>
+      <div class="stat">
+        <b>⅐</b>
+        <p>A normal browser spends <strong>about 100 px</strong> on tabs, the address bar and bookmarks. In a 720p share, that's <strong>a seventh of every frame</strong>. Stage gives it back to the page.</p>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="wall-title">
+      <h2 id="wall-title" class="display">Any site.<br><span class="pop">Edge to edge.</span></h2>
+      <div class="wall">
+        <figure class="tile">
+          <div class="window static" aria-hidden="true">
+            <div class="strip">
+              <span class="lights"><i></i><i></i><i></i></span>
+              <div class="capsule">
+                <div class="tabs">
+                  <span class="tab active"><span class="fav" style="--c:#fff;--fc:#000;box-shadow:inset 0 0 0 1px #d0d0d0">W</span><span class="t">Web conferencing</span></span>
+                  <span class="tab"><span class="fav" style="--c:#005a9c">W3</span><span class="t">Screen Capture</span></span>
+                </div>
+              </div>
+            </div>
+            <img class="shot on" src="../shots/wikipedia.jpg" alt="">
+          </div>
+          <figcaption><b>en.wikipedia.org</b><span>tabs revealed</span></figcaption>
+        </figure>
+        <figure class="tile">
+          <div class="window" aria-hidden="true"><div class="tabline"></div><img class="shot on" src="../shots/w3c.jpg" alt=""></div>
+          <figcaption><b>w3.org/TR/screen-capture</b><span>tabs hidden</span></figcaption>
+        </figure>
+        <figure class="tile">
+          <div class="window" aria-hidden="true"><div class="tabline"></div><img class="shot on" src="../shots/electron.jpg" alt=""></div>
+          <figcaption><b>electronjs.org</b><span>tabs hidden</span></figcaption>
+        </figure>
+        <figure class="tile">
+          <div class="window" aria-hidden="true"><div class="tabline"></div><img class="shot on" src="../shots/github.jpg" alt=""></div>
+          <figcaption><b>github.com/electron/electron</b><span>tabs hidden</span></figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section class="section" id="run-of-show" aria-labelledby="run-title">
+      <h2 id="run-title" class="display">Run of <span class="pop">show.</span></h2>
+      <ol class="cues">
+        <li>
+          <span class="tag">Before the call</span>
+          <h3>Open your demo tabs from the terminal</h3>
+          <div class="cmd"><code>stage --size 1280x720 \
+  app.example.com docs.example.com</code></div>
+          <p>Each address becomes a tab. <code>--size</code> fixes the window at 16:9, so nothing reflows when you start sharing.</p>
+        </li>
+        <li>
+          <span class="tag">Going live</span>
+          <h3>Share only the Stage window</h3>
+          <p>In Zoom, Meet or Teams, pick the Stage window instead of your whole screen. The audience gets the page and nothing around it.</p>
+        </li>
+        <li>
+          <span class="tag">During the demo</span>
+          <h3>Reach up when you need another tab</h3>
+          <p>Push the pointer against the top edge and the tabs slide in. Or stay on the keyboard: <kbd>⌘1</kbd>–<kbd>⌘9</kbd> switch tabs and <kbd>⌘L</kbd> opens a page.</p>
+        </li>
+      </ol>
+    </section>
+
+    <section class="section" id="features" aria-labelledby="features-title">
+      <h2 id="features-title" class="display">Small on <span class="pop">purpose.</span></h2>
+      <div class="rows">
+        <div class="row"><h3 class="display">Hidden tabs</h3><p>No toolbar, address bar or bookmarks. The tab capsule slides over the page from the top edge, and <kbd>⇧⌘B</kbd> pins it open.</p></div>
+        <div class="row"><h3 class="display">Extensions</h3><p>Add the ones you use from the Chrome Web Store: Extensions → Open Chrome Web Store, then Add to Chrome. Their icons sit in the tab bar.</p></div>
+        <div class="row"><h3 class="display">Terminal start</h3><p><code>stage &lt;url&gt;</code> opens the page and hands your prompt back. Run it again and the page joins the open window. No app bundle to sign.</p></div>
+        <div class="row"><h3 class="display">Share sizes</h3><p>Window presets at 1280×720, 1440×900, 1600×900 and 1920×1080. Zoom with <kbd>⌘=</kbd> and <kbd>⌘-</kbd> so the back row can read.</p></div>
+        <div class="row"><h3 class="display">Escape hatch</h3><p><kbd>⇧⌘O</kbd> opens the current page in Google Chrome. Zoom and Slack links open in their own apps.</p></div>
+      </div>
+    </section>
+
+    <section class="section" id="shortcuts" aria-labelledby="shortcuts-title">
+      <h2 id="shortcuts-title" class="display">Hands on the <span class="pop">keys.</span></h2>
+      <div class="keys-grid">
+        <div class="key-row"><span class="k"><kbd>⌘T</kbd></span><span>New tab, straight into the address box</span></div>
+        <div class="key-row"><span class="k"><kbd>⌘L</kbd></span><span>Go to an address or search</span></div>
+        <div class="key-row"><span class="k"><kbd>⌘1</kbd><kbd>⌘9</kbd></span><span>Jump to a tab (⌘9 is the last)</span></div>
+        <div class="key-row"><span class="k"><kbd>⌃Tab</kbd><kbd>⇧⌘]</kbd></span><span>Next tab (⇧ goes back)</span></div>
+        <div class="key-row"><span class="k"><kbd>⌘W</kbd><kbd>⇧⌘T</kbd></span><span>Close a tab, reopen it</span></div>
+        <div class="key-row"><span class="k"><kbd>⌘[</kbd><kbd>⌘]</kbd></span><span>Back and forward</span></div>
+        <div class="key-row"><span class="k"><kbd>⌘=</kbd><kbd>⌘-</kbd><kbd>⌘0</kbd></span><span>Zoom in, out, reset</span></div>
+        <div class="key-row"><span class="k"><kbd>⇧⌘B</kbd></span><span>Pin or unpin the tab bar</span></div>
+        <div class="key-row"><span class="k"><kbd>⌃⌘F</kbd></span><span>Full screen</span></div>
+        <div class="key-row"><span class="k"><kbd>⇧⌘O</kbd></span><span>Open the page in Google Chrome</span></div>
+      </div>
+    </section>
+
+    <section class="section" id="install" aria-labelledby="install-title">
+      <h2 id="install-title" class="display">One <span class="pop">command.</span></h2>
+      <div class="installs">
+        <div class="install">
+          <h3>Try it without installing</h3>
+          <div class="cmd"><code>npx stage-browser https://example.com</code><button class="copy" type="button" data-copy="npx stage-browser https://example.com">Copy</button></div>
+        </div>
+        <div class="install">
+          <h3>Install the stage command</h3>
+          <div class="cmd"><code>npm i -g stage-browser</code><button class="copy" type="button" data-copy="npm i -g stage-browser">Copy</button></div>
+        </div>
+      </div>
+      <p class="note">Needs macOS and Node 18 or later. The first run downloads Chromium, about 100 MB.</p>
+    </section>
+
+    <section class="section" id="faq" aria-labelledby="faq-title">
+      <h2 id="faq-title" class="display">Before you go <span class="pop">live.</span></h2>
+      <div class="faq">
+        <details>
+          <summary>Do Chrome extensions work?</summary>
+          <p>Most do. Stage starts with none installed: add yours from the Chrome Web Store, and their pop-ups open from the tab bar. Stage supports most Chrome extension APIs but not every one, so if an extension misbehaves, ⇧⌘O opens the page in Google Chrome.</p>
+        </details>
+        <details>
+          <summary>Is it signed or notarized?</summary>
+          <p>It doesn't need to be. On first launch, Stage copies Electron's Chromium app on your own Mac, names it Stage, and gives it a local signature, the same kind Electron itself ships with. No Apple developer account is involved.</p>
+        </details>
+        <details>
+          <summary>Why does macOS ask about "Chromium Safe Storage"?</summary>
+          <p>That Keychain key decrypts your saved logins. macOS asks once after you install or update Stage. Choose Always Allow, or sites will treat you as signed out.</p>
+        </details>
+        <details>
+          <summary>Where are my logins and tabs kept?</summary>
+          <p>In <code>~/Library/Application Support/Stage</code>. npx, a global install and a clone all share it, so you sign in once. Stage reopens your last tabs when it starts.</p>
+        </details>
+        <details>
+          <summary>Windows or Linux?</summary>
+          <p>Not yet. Stage is macOS only.</p>
+        </details>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p class="display mega" aria-hidden="true">Stage</p>
+    <div class="foot"><span>Stage 0.1.0 · MIT</span><span>Built on Electron and Chromium</span></div>
+  </footer>
+</div>
+
+<script>
+(() => {
+  document.querySelectorAll('[data-copy]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const done = (label) => { btn.textContent = label; setTimeout(() => { btn.textContent = 'Copy'; }, 1600); };
+      try {
+        await navigator.clipboard.writeText(btn.dataset.copy);
+        done('Copied');
+      } catch {
+        const range = document.createRange();
+        range.selectNodeContents(btn.parentElement.querySelector('code'));
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+        done('Press ⌘C');
+      }
+    });
+  });
+
+  // Live demo: the same reveal rules Stage uses.
+  const win = document.getElementById('win');
+  const strip = document.getElementById('strip');
+  const capsule = document.getElementById('capsule');
+  const tabsEl = capsule.querySelector('.tabs');
+  const toggle = document.getElementById('toggle');
+  const addBtn = document.getElementById('add');
+  const ghost = document.getElementById('ghost');
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const HOT_EDGE = 12;     // px; Stage uses 6 on a real window
+  const HIDE_DELAY = 350;  // ms
+  let visible = false, hovering = false, focused = false, forced = false;
+  let hideTimer = 0, userMoved = false;
+
+  const keepOpen = () => hovering || focused || forced;
+  function setVisible(v) {
+    if (visible === v) return;
+    visible = v;
+    win.classList.toggle('revealed', v);
+    toggle.setAttribute('aria-expanded', String(v));
+    toggle.textContent = v ? 'Hide tabs' : 'Show tabs';
+  }
+  function cancelHide() { clearTimeout(hideTimer); hideTimer = 0; }
+  function scheduleHide() {
+    if (hideTimer || keepOpen()) return;
+    hideTimer = setTimeout(() => { hideTimer = 0; if (!keepOpen()) setVisible(false); }, HIDE_DELAY);
+  }
+  const yInWindow = (e) => e.clientY - win.getBoundingClientRect().top;
+
+  win.addEventListener('pointermove', (e) => {
+    if (e.pointerType === 'touch') return;
+    userMoved = true;
+    const y = yInWindow(e);
+    if (y <= HOT_EDGE) { cancelHide(); setVisible(true); return; }
+    if (!visible) return;
+    if (y > strip.offsetHeight + 24) scheduleHide(); else cancelHide();
+  });
+  win.addEventListener('pointerleave', () => { if (visible) scheduleHide(); });
+  win.addEventListener('pointerdown', (e) => {
+    if (e.pointerType !== 'touch') return;
+    userMoved = true;
+    if (yInWindow(e) <= 36) setVisible(true);
+    else if (!capsule.contains(e.target)) { forced = false; setVisible(false); }
+  });
+  capsule.addEventListener('pointerenter', () => { hovering = true; cancelHide(); });
+  capsule.addEventListener('pointerleave', () => { hovering = false; });
+  capsule.addEventListener('focusin', () => { focused = true; cancelHide(); setVisible(true); });
+  capsule.addEventListener('focusout', (e) => { if (!capsule.contains(e.relatedTarget)) { focused = false; scheduleHide(); } });
+
+  toggle.addEventListener('click', () => {
+    userMoved = true;
+    if (visible) { forced = false; cancelHide(); setVisible(false); }
+    else { forced = true; setVisible(true); }
+  });
+
+  function activate(tab) {
+    tabsEl.querySelectorAll('.tab').forEach((t) => {
+      const on = t === tab;
+      t.classList.toggle('active', on);
+      t.setAttribute('aria-selected', String(on));
+    });
+    win.querySelectorAll('.shot').forEach((img) => img.classList.toggle('on', img.dataset.shot === tab.dataset.shot));
+  }
+  tabsEl.addEventListener('click', (e) => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    if (e.target.closest('.x')) {
+      if (tabsEl.querySelectorAll('.tab:not([hidden])').length <= 1) return;
+      const wasActive = tab.classList.contains('active');
+      tab.hidden = true;
+      if (wasActive) activate(tabsEl.querySelector('.tab:not([hidden])'));
+      return;
+    }
+    activate(tab);
+  });
+  addBtn.addEventListener('click', () => {
+    const closed = tabsEl.querySelector('.tab[hidden]');
+    if (closed) { closed.hidden = false; activate(closed); }
+  });
+
+  // One short demonstration when the window first comes into view.
+  if (!reduceMotion && 'IntersectionObserver' in window) {
+    const io = new IntersectionObserver((entries) => {
+      if (!entries.some((en) => en.isIntersecting)) return;
+      io.disconnect();
+      setTimeout(() => {
+        if (userMoved || visible) { ghost.remove(); return; }
+        ghost.classList.add('go');
+        setTimeout(() => { if (!userMoved) setVisible(true); }, 900);
+        setTimeout(() => {
+          ghost.classList.remove('go');
+          ghost.classList.add('back');
+          if (!userMoved && !keepOpen()) setVisible(false);
+        }, 2700);
+        setTimeout(() => ghost.remove(), 3500);
+      }, 800);
+    }, { threshold: 0.5 });
+    io.observe(win);
+  } else {
+    ghost.remove();
+  }
+})();
+</script>
+</body>
+</html>
