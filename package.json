@@ -1,7 +1,7 @@
 {
   "name": "stage-browser",
   "productName": "Stage",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "A minimal Chromium browser for screen sharing: the page fills the window, tabs hide until you reach for them.",
   "main": "dist/main/main.js",
   "scripts": {
