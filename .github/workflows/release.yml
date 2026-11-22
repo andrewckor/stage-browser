@@ -79,6 +79,11 @@ jobs:
         if: steps.check.outputs.release == 'true'
         run: mkdir -p release && npm pack --pack-destination release
 
+      # Installed copies only take updates signed by a workflow they know.
+      - name: Check the signer
+        if: steps.check.outputs.release == 'true'
+        run: node scripts/check-signer.mjs
+
       # Publishing is the one step that cannot be undone, so it runs before the
       # tag. Skipped when the version is already on npm, so a re-run is safe.
       - name: Publish to npm

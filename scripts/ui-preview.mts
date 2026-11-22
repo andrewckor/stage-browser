@@ -22,7 +22,7 @@ const OUT = join(ROOT, 'selftest-out', 'ui-preview')
 const PAGE = pathToFileURL(join(ROOT, 'dist', 'ui', 'index.html')).href
 
 const arg = (name: string) => process.argv.find((a) => a.startsWith(`--${name}=`))?.split('=')[1]
-const SCENES = (arg('only') ?? 'bar,omnibox,omnibox-edit,many,loading,pinned,single,newtab,bar:left,bar:right,many:left,pinned:right,omnibox:left').split(',')
+const SCENES = (arg('only') ?? 'bar,omnibox,omnibox-edit,many,loading,pinned,single,newtab,bar:left,bar:right,many:left,pinned:right,omnibox:left,update-available,update-available:left,update,update:left,update:right,update-manual,update-manual:left,update-working,update-ready,update-ready-warned,update-restarting,update-checking,update-current,update-error,update-error:right,update-error-check').split(',')
 const SIZES = (arg('size') ?? '1280x800,640x400').split(',')
 const THEMES = ['dark', 'light']
 const BACKDROPS = ['light', 'dark']
@@ -30,6 +30,8 @@ const SELFCHECKS: readonly [suite: string, scene: string, size: string][] = [
   ['main', 'bar', '1280,800'],
   ['many', 'many', '1280,800'],
   ['many', 'many', '640,400'],
+  ['update', 'bar', '1280,800'],
+  ['update', 'bar', '640,400'],
 ]
 
 function chrome(args: readonly string[]): Promise<string> {

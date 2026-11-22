@@ -38,6 +38,10 @@ const api: StageApi = {
   startWindowDrag: command('startWindowDrag'),
   endWindowDrag: command('endWindowDrag'),
   windowAction: command('windowAction'),
+  openUpdate: command('openUpdate'),
+  installUpdate: command('installUpdate'),
+  cancelUpdate: command('cancelUpdate'),
+  copyUpdateCommand: command('copyUpdateCommand'),
 }
 
 contextBridge.exposeInMainWorld('stage', api)

@@ -8,6 +8,8 @@
   type OmniboxMode = import('../shared/contract').OmniboxMode
   type OmniboxOverlay = import('../shared/contract').OmniboxOverlay
   type Suggestion = import('../shared/contract').Suggestion
+  type UpdateState = import('../shared/contract').UpdateState
+  type UpdateStep = import('../shared/contract').UpdateStep
   type WindowAction = import('../shared/contract').WindowAction
 
   const STRIP_LEFT = 84
@@ -20,6 +22,13 @@
   const MAX_SUGGESTIONS = 8
   const CLOSE_ANIMATION_MS = 260
   const SETTLE_MS = 150
+  const RESTART_WARNING = 'Restarts Stage and reopens your tabs. Unsaved page input, downloads and calls will be lost.'
+  const UPDATE_STEPS: Record<UpdateStep, string> = {
+    download: 'Downloading…',
+    verify: 'Checking the signature…',
+    prepare: 'Getting ready…',
+    runtime: 'Downloading the browser engine…',
+  }
 
   const ICONS = {
     close: '<svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="M3 3l6 6M9 3L3 9" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
@@ -90,10 +99,55 @@
     answered: string | null
   }
 
+  interface UpdateText {
+    title: string
+    detail: string
+    note: string
+    command: string
+    dismiss: string
+    go: string
+  }
+
+  // What the popover says. An empty string hides that part.
+  const updateText = (u: UpdateState): UpdateText => {
+    const text: UpdateText = { title: '', detail: '', note: '', command: '', dismiss: '', go: '' }
+    const { status, available, canInstall, command, current } = u
+    const name = available ? `Stage ${available}` : 'Stage'
+    if (status === 'checking') return { ...text, title: 'Checking for updates…', dismiss: 'Close' }
+    if (status === 'working') return { ...text, title: `Getting ${name} ready`, detail: UPDATE_STEPS[u.step ?? 'prepare'], dismiss: 'Cancel' }
+    if (status === 'restarting') return { ...text, title: `Opening ${name}`, detail: 'Saving your tabs and restarting…' }
+    if (status === 'ready') {
+      const ready = { ...text, title: `${name} is ready`, note: RESTART_WARNING, dismiss: 'Later' }
+      return u.warnings.length ? { ...ready, detail: u.warnings.join(' '), go: 'Restart Anyway' } : { ...ready, go: 'Restart' }
+    }
+    if (status === 'error') {
+      const failed = { ...text, detail: u.message ?? '', dismiss: 'Close' }
+      if (!available) return { ...failed, title: 'Couldn’t check for updates' }
+      return { ...failed, title: `Couldn’t update to ${name}`, note: canInstall ? RESTART_WARNING : '', command, go: canInstall ? 'Try Again' : '' }
+    }
+    if (!available) return { ...text, title: 'Stage is up to date', detail: `You have ${current}`, dismiss: 'Close' }
+    const offer = { ...text, title: `${name} is available`, detail: `You have ${current}`, note: RESTART_WARNING, dismiss: 'Later' }
+    return canInstall ? { ...offer, go: 'Update and Restart' } : { ...offer, command }
+  }
+
   const byId = <T extends HTMLElement>(id: string, type: { new (): T; prototype: T }): T => {
     const node = document.getElementById(id)
     if (!(node instanceof type)) throw new Error(`#${id} is missing`)
     return node
+  }
+
+  const setText = (node: HTMLElement, text: string): void => {
+    if (node.textContent !== text) node.textContent = text
+  }
+
+  // Wraps between words only: a break inside "--restart" reads as two arguments.
+  const setCommand = (node: HTMLElement, command: string): void => {
+    if (node.textContent === command) return
+    node.replaceChildren()
+    for (const word of command.split(' ')) {
+      if (node.hasChildNodes()) node.append(' ')
+      node.append(Object.assign(create('span'), { textContent: word }))
+    }
   }
 
   const create = <K extends keyof HTMLElementTagNameMap>(tag: K, className?: string): HTMLElementTagNameMap[K] => {
@@ -183,6 +237,20 @@
     const input = byId('omni-input', HTMLInputElement)
     const list = byId('omni-list', HTMLElement)
     const glyph = byId('omni-glyph', HTMLElement)
+    const updateBtn = byId('update-btn', HTMLButtonElement)
+    const updateLabel = byId('update-label', HTMLElement)
+    const updateEl = byId('update', HTMLElement)
+    const updateBackdrop = byId('update-backdrop', HTMLElement)
+    const updatePanel = byId('update-panel', HTMLElement)
+    const updateTitle = byId('update-title', HTMLElement)
+    const updateDetail = byId('update-detail', HTMLElement)
+    const updateProgress = byId('update-progress', HTMLElement)
+    const updateFill = byId('update-fill', HTMLElement)
+    const updateNote = byId('update-note', HTMLElement)
+    const updateCommand = byId('update-command', HTMLElement)
+    const updateCopy = byId('update-copy', HTMLButtonElement)
+    const updateDismiss = byId('update-dismiss', HTMLButtonElement)
+    const updateGo = byId('update-go', HTMLButtonElement)
 
     const views = new Map<TabId, TabView>()
     let state: StageState | null = null
@@ -190,6 +258,8 @@
     let firstRender = true
     let shownLayout: StageState['tabLayout'] = 'top'
     let layoutQueued = false
+    let updateNonce: number | null = null
+    let copied = false
 
     const ob: OmniboxView = { open: false, mode: 'new', initial: '', nonce: null, items: [], sel: 0, seq: 0, timer: undefined, answered: null }
 
@@ -232,7 +302,15 @@
       // A full-screen window can't be minimized, and green takes it back out.
       minimizeBtn.disabled = s.fullscreen
       zoomBtn.setAttribute('aria-label', s.fullscreen ? 'Exit full screen' : 'Enter full screen')
+      renderUpdateButton(s)
       renderTabs(s)
+    }
+
+    const renderUpdateButton = ({ update: u, overlay }: StageState): void => {
+      updateBtn.hidden = !u.available && u.status !== 'working' && u.status !== 'ready' && u.status !== 'restarting'
+      setText(updateLabel, u.status === 'ready' ? 'Restart' : 'Update')
+      updateBtn.title = u.available ? `Update to Stage ${u.available}` : 'Update Stage'
+      updateBtn.setAttribute('aria-expanded', String(overlay?.type === 'update'))
     }
 
     const renderTabs = (s: StageState): void => {
@@ -370,7 +448,8 @@
           tabsEl.classList.remove('compact')
           return updateFades()
         }
-        const fixed = CAPSULE_PAD + newBtn.offsetWidth + controlsEl.offsetWidth + TAB_GAP * 2
+        const update = updateBtn.hidden ? 0 : updateBtn.offsetWidth + TAB_GAP
+        const fixed = CAPSULE_PAD + newBtn.offsetWidth + update + controlsEl.offsetWidth + TAB_GAP * 2
         const avail = root.clientWidth - STRIP_LEFT - STRIP_RIGHT - fixed
         tabsEl.classList.toggle('compact', n > 1 && n * TAB_MIN + (n - 1) * TAB_GAP > avail)
         updateFades()
@@ -480,13 +559,57 @@
       if (state) renderTabs(state)
     }
 
-    const renderOverlay = (s: StageState): void => {
-      const o = s.overlay?.type === 'omnibox' ? s.overlay : null
-      if (!o) {
-        if (ob.open) closeOmnibox()
-        return
+    const renderOverlay = ({ overlay: o, update }: StageState): void => {
+      // One replaces the other, so close first: focus then lands in the one that opens.
+      if (o?.type !== 'omnibox' && ob.open) closeOmnibox()
+      if (o?.type !== 'update' && updateNonce !== null) closeUpdate()
+      if (o?.type === 'omnibox' && (!ob.open || ob.mode !== o.mode || ob.initial !== o.initial || ob.nonce !== o.nonce)) openOmnibox(o)
+      if (o?.type === 'update') renderUpdate(update, o.nonce)
+    }
+
+    const renderUpdate = (u: UpdateState, nonce: number): void => {
+      const opening = updateNonce !== nonce
+      if (opening) {
+        updateNonce = nonce
+        copied = false
+        updateEl.hidden = false
+        strip.inert = true // Tab stays in the popover
       }
-      if (!ob.open || ob.mode !== o.mode || ob.initial !== o.initial || ob.nonce !== o.nonce) openOmnibox(o)
+      const text = updateText(u)
+      setText(updateTitle, text.title)
+      setText(updateDetail, text.detail)
+      setText(updateNote, text.note)
+      setCommand(updateCommand, text.command)
+      setText(updateDismiss, text.dismiss)
+      setText(updateGo, text.go)
+      setText(updateCopy, copied ? 'Copied' : 'Copy Command')
+      updateDetail.hidden = !text.detail
+      updateNote.hidden = !text.note
+      updateCommand.hidden = !text.command
+      updateCopy.hidden = !text.command
+      // Copying is the main action where Stage can't install by itself.
+      updateCopy.classList.toggle('primary', !text.go)
+      updateDismiss.hidden = !text.dismiss
+      updateGo.hidden = !text.go
+
+      updateProgress.hidden = u.status !== 'working' && u.status !== 'restarting'
+      const percent = u.status === 'working' ? u.percent : null
+      updateProgress.classList.toggle('waiting', percent === null)
+      updateFill.style.width = percent === null ? '' : `${percent}%`
+      if (percent === null) updateProgress.removeAttribute('aria-valuenow')
+      else updateProgress.setAttribute('aria-valuenow', String(percent))
+
+      // The panel, never a button: a stray Return must not restart Stage.
+      const active = document.activeElement
+      const lostFocus = !(active instanceof HTMLElement) || !updatePanel.contains(active) || active.hidden
+      if (opening || lostFocus) updatePanel.focus()
+    }
+
+    const closeUpdate = (): void => {
+      updateNonce = null
+      updateEl.hidden = true
+      strip.inert = false
+      updatePanel.blur()
     }
 
     const openOmnibox = (o: OmniboxOverlay): void => {
@@ -631,7 +754,9 @@
       { passive: false },
     )
     window.addEventListener('resize', layoutTabs)
-    new ResizeObserver(layoutTabs).observe(controlsEl)
+    const barResize = new ResizeObserver(layoutTabs)
+    barResize.observe(controlsEl)
+    barResize.observe(updateBtn)
 
     tabsEl.addEventListener('mousedown', (e) => {
       if (e.button === 1) e.preventDefault()
@@ -719,6 +844,7 @@
     lights.addEventListener('mouseenter', trackAlt)
 
     newBtn.addEventListener('click', () => stage.openOmnibox('new'))
+    updateBtn.addEventListener('click', () => stage.openUpdate())
     capsule.addEventListener('mouseenter', () => stage.setBarHover(true))
     capsule.addEventListener('mouseleave', () => stage.setBarHover(false))
 
@@ -745,7 +871,8 @@
     })
     window.addEventListener('keydown', (e) => {
       if (e.key === 'Meta' && ob.open) omni.classList.add('cmd')
-      if (e.key === 'Escape' && ob.open && e.target !== input) stage.closeOverlay()
+      if (e.key !== 'Escape') return
+      if ((ob.open && e.target !== input) || updateNonce !== null) stage.closeOverlay()
     })
     window.addEventListener('keyup', (e) => {
       if (e.key === 'Meta') omni.classList.remove('cmd')
@@ -753,11 +880,30 @@
     window.addEventListener('blur', () => omni.classList.remove('cmd'))
     window.addEventListener('focus', () => {
       if (ob.open) input.focus()
+      else if (updateNonce !== null && !updatePanel.contains(document.activeElement)) updatePanel.focus()
     })
 
     backdrop.addEventListener('mousedown', () => stage.closeOverlay())
     omni.addEventListener('mousedown', (e) => {
       if (e.target !== input && e.target instanceof Node && panel.contains(e.target)) e.preventDefault()
+    })
+
+    // The second click of a double-click lands on whatever replaced what the first one hit.
+    updateBackdrop.addEventListener('mousedown', (e) => {
+      if (e.detail < 2) stage.closeOverlay()
+    })
+    updateGo.addEventListener('click', (e) => {
+      if (e.detail < 2) stage.installUpdate()
+    })
+    updateDismiss.addEventListener('click', (e) => {
+      if (e.detail > 1) return
+      if (state?.update.status === 'working') stage.cancelUpdate()
+      else stage.closeOverlay()
+    })
+    updateCopy.addEventListener('click', () => {
+      stage.copyUpdateCommand()
+      copied = true
+      setText(updateCopy, 'Copied')
     })
   }
 

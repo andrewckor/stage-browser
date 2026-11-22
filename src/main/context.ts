@@ -5,6 +5,7 @@ import type { Reveal } from './reveal'
 import type { Prefs } from './store'
 import type { Tabs } from './tabs'
 import type { UiWindow } from './ui-window'
+import type { Updates } from './updates'
 import type { WindowDrag } from './window'
 
 export interface BarFlags {
@@ -24,6 +25,7 @@ export interface Ctx {
   readonly ext: ElectronChromeExtensions
   readonly bar: BarFlags
   readonly prefs: Prefs
+  readonly updates: Updates
   overlay: Overlay | null
   popupOpen: boolean
   quitting: boolean
@@ -37,4 +39,5 @@ export interface Ctx {
   getState(): StageState
   setHideExtensionIcons(hide: boolean): void
   setTabLayout(layout: TabLayout): void
+  setCheckForUpdates(check: boolean): void
 }

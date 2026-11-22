@@ -63,6 +63,10 @@ export function setupIpc(ctx: Ctx): void {
     startWindowDrag: () => drag.start(),
     endWindowDrag: () => drag.end(),
     windowAction: (action) => windowAction(win, action),
+    openUpdate: () => ctx.updates.open(),
+    installUpdate: () => ctx.updates.install(),
+    cancelUpdate: () => ctx.updates.cancel(),
+    copyUpdateCommand: () => ctx.updates.copyCommand(),
   }
 
   for (const name of Object.keys(queries) as (keyof Queries)[]) {

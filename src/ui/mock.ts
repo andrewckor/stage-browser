@@ -2,13 +2,15 @@
 // window.stage is undefined, which never happens inside Electron.
 //
 // URL params:
-//   scene     bar | single | many | loading | pinned | omnibox | omnibox-edit | newtab
+//   scene     bar | single | many | loading | pinned | omnibox | omnibox-edit | newtab | update-available
+//             update | update-manual | update-working | update-ready | update-ready-warned | update-restarting
+//             update-checking | update-current | update-error | update-error-check
 //   theme     dark | light
 //   backdrop  light | dark       paints a fake web page behind the transparent UI
 //   layout    top | left | right   tab bar position (default top)
 //   anim      0                  disables transitions, for deterministic screenshots
 //   visible   0                  starts with the bar hidden
-//   selfcheck main | many        runs in-page interaction checks; results land in #selfcheck
+//   selfcheck main | many | update    runs in-page interaction checks; results land in #selfcheck
 {
   type StageApi = import('../shared/contract').StageApi
   type StageState = import('../shared/contract').StageState
@@ -16,6 +18,7 @@
   type TabId = import('../shared/contract').TabId
   type OmniboxMode = import('../shared/contract').OmniboxMode
   type Suggestion = import('../shared/contract').Suggestion
+  type UpdateState = import('../shared/contract').UpdateState
   type UiCommands = import('../shared/contract').UiCommands
 
   type Call = { [K in keyof UiCommands]: [K, ...UiCommands[K]] }[keyof UiCommands] | ['suggest', string]
@@ -34,6 +37,8 @@
   const root = document.documentElement
   const theme = params.get('theme')
   if (theme) root.dataset.theme = theme
+  // Headless Chrome on virtual time can skip animation frames, which leaves the tab layout unrun.
+  if (params.has('selfcheck')) window.requestAnimationFrame = (run) => window.setTimeout(() => run(performance.now()), 16)
 
   const fav = (letter: string, bg: string, shape: 'square' | 'circle' = 'square'): string => {
     const inner = shape === 'circle' ? `<circle cx="8" cy="8" r="8" fill="${bg}"/>` : `<rect width="16" height="16" rx="4" fill="${bg}"/>`
@@ -126,6 +131,17 @@
     hideExtensionIcons: false,
     extensionActions: 2,
     overlay: null,
+    update: {
+      current: '0.4.0',
+      available: scene === 'update-available' || scene === 'many' ? '0.5.0' : null,
+      status: 'idle',
+      step: null,
+      percent: null,
+      message: null,
+      canInstall: true,
+      command: 'npm i -g stage-browser@latest && stage --restart',
+      warnings: [],
+    },
     barHeight: 52,
     tabLayout: layout,
     sidebarWidth: 248,
@@ -134,6 +150,23 @@
   const omnibox = (mode: OmniboxMode, text: string) => ({ type: 'omnibox', mode, initial: text, nonce: ++nonce }) as const
   if (scene === 'omnibox') st.overlay = omnibox('new', 'zap')
   if (scene === 'omnibox-edit') st.overlay = omnibox('edit', at(st.tabs, 1).url)
+  const updateScenes: Partial<Record<string, Partial<UpdateState>>> = {
+    update: {},
+    'update-manual': { canInstall: false },
+    'update-working': { status: 'working', step: 'runtime', percent: 42 },
+    'update-ready': { status: 'ready' },
+    'update-ready-warned': { status: 'ready', warnings: ['A download is still in progress.', '“Weekly sync – Notes” may have unsaved changes.'] },
+    'update-restarting': { status: 'restarting' },
+    'update-checking': { status: 'checking', available: null },
+    'update-current': { status: 'current', available: null },
+    'update-error': { status: 'error', message: 'The last update couldn’t finish, so this version is still open. Try again, or update from Terminal.' },
+    'update-error-check': { status: 'error', available: null, message: 'Couldn’t reach npm. Check your connection and try again.' },
+  }
+  const updateScene = updateScenes[scene]
+  if (updateScene) {
+    Object.assign(st.update, { available: '0.5.0' }, updateScene)
+    st.overlay = { type: 'update', nonce: ++nonce }
+  }
 
   let listeners: ((s: StageState) => void)[] = []
   const calls: Call[] = []
@@ -246,6 +279,23 @@
     startWindowDrag: () => record('startWindowDrag'),
     endWindowDrag: () => record('endWindowDrag'),
     windowAction: (action) => record('windowAction', action),
+    openUpdate: () => {
+      record('openUpdate')
+      st.overlay = { type: 'update', nonce: ++nonce }
+      emit()
+    },
+    installUpdate: () => {
+      record('installUpdate')
+      Object.assign(st.update, st.update.status === 'ready' ? { status: 'restarting', percent: null } : { status: 'working', step: 'download', percent: 0 })
+      emit()
+    },
+    cancelUpdate: () => {
+      record('cancelUpdate')
+      Object.assign(st.update, { status: 'idle', step: null, percent: null })
+      st.overlay = null
+      emit()
+    },
+    copyUpdateCommand: () => record('copyUpdateCommand'),
   } satisfies StageApi
   window.stage = api
 
@@ -359,6 +409,100 @@
       document.title = `selfcheck ${fail ? 'FAIL' : 'PASS'}`
     }
 
+    const runUpdateChecks = async () => {
+      const set = async (patch: Partial<UpdateState>) => {
+        Object.assign(st.update, patch)
+        emit()
+        await sleep(30)
+      }
+      const open = () => !q('#update').hidden
+      const shown = (sel: string) => q(sel).getClientRects().length > 0
+      const click = async (sel: string, detail = 1) => {
+        q(sel).dispatchEvent(new MouseEvent('click', { bubbles: true, detail }))
+        await sleep(30)
+      }
+      const focused = () => document.activeElement === q('#update-panel')
+
+      await set({ available: null })
+      check('update: no button without an update', !shown('#update-btn'))
+      check('update: the popover never opens by itself', !open())
+      await set({ available: '0.5.0' })
+      check('update: button shows for a new version', shown('#update-btn') && q('#update-btn').textContent?.trim() === 'Update')
+      check('update: a new version alone opens nothing', !open() && countCalls('openUpdate') === 0)
+      ptr('pointerdown', q('#update-btn'), 5, 5)
+      check('update: pressing the button does not drag the window', countCalls('startWindowDrag') === 0)
+      await click('#update-btn')
+      check('update: button opens the popover', countCalls('openUpdate') === 1 && open())
+      check('update: focus lands on the panel, not a button', focused(), document.activeElement?.id)
+      check('update: the bar is out of the tab order meanwhile', q('#strip').inert)
+      check('update: offer names both versions', /0\.5\.0/.test(q('#update-title').textContent ?? '') && /0\.4\.0/.test(q('#update-detail').textContent ?? ''))
+      check('update: offer warns about the restart', shown('#update-note') && /Restarts Stage/.test(q('#update-note').textContent ?? ''))
+      check('update: no command when Stage installs it', !shown('#update-command') && !shown('#update-copy'))
+      key(q('#update-panel'), 'Enter')
+      check('update: Return alone installs nothing', countCalls('installUpdate') === 0)
+
+      q('#update-go').focus()
+      await click('#update-go')
+      check('update: Update and Restart installs', countCalls('installUpdate') === 1)
+      check('update: progress and Cancel while working', shown('#update-progress') && q('#update-dismiss').textContent === 'Cancel' && !shown('#update-go'))
+      check('update: focus returns to the panel when its button goes', focused(), document.activeElement?.id)
+      await click('#update-dismiss', 2)
+      check('update: a double-click does not cancel what it started', countCalls('cancelUpdate') === 0)
+      q('#update-backdrop').dispatchEvent(new MouseEvent('mousedown', { bubbles: true, detail: 2 }))
+      await sleep(30)
+      check('update: a double-click does not close the popover', open())
+      await set({ percent: 42 })
+      check('update: percent reaches the bar', q('#update-progress').getAttribute('aria-valuenow') === '42' && q('#update-fill').style.width === '42%')
+      q('#update-dismiss').focus()
+      await set({ percent: 43 })
+      check('update: progress keeps the focused button', document.activeElement === q('#update-dismiss'))
+      await click('#update-dismiss')
+      check('update: Cancel cancels and closes', countCalls('cancelUpdate') === 1 && !open() && !q('#strip').inert)
+
+      await set({ status: 'ready' })
+      check('update: ready turns the button into Restart, quietly', q('#update-btn').textContent?.trim() === 'Restart' && !open())
+      await click('#update-btn')
+      check('update: ready offers Restart and Later', q('#update-go').textContent === 'Restart' && q('#update-dismiss').textContent === 'Later')
+      await click('#update-dismiss')
+      check('update: Later closes without cancelling', !open() && countCalls('cancelUpdate') === 1 && st.update.status === 'ready')
+      await click('#update-btn')
+      await click('#update-go', 2)
+      check('update: the second click of a double-click does not restart', countCalls('installUpdate') === 1)
+      await click('#update-go')
+      check('update: Restart commits', countCalls('installUpdate') === 2)
+      check('update: restarting has no buttons', !shown('#update-actions') && shown('#update-progress'))
+
+      await set({ status: 'idle', canInstall: false })
+      check('update: manual install shows the command only', shown('#update-command') && !shown('#update-go') && q('#update-command').textContent === st.update.command)
+      await click('#update-copy')
+      check('update: Copy Command copies', countCalls('copyUpdateCommand') === 1 && q('#update-copy').textContent === 'Copied')
+
+      await set({ status: 'error', canInstall: true, message: '<img src=x> failed' })
+      check('update: a message is text, never markup', !document.querySelector('#update img') && q('#update-detail').textContent === '<img src=x> failed')
+      check('update: an error offers Try Again and the command', q('#update-go').textContent === 'Try Again' && shown('#update-copy'))
+      await set({ status: 'error', available: null })
+      check('update: a failed check offers neither', !shown('#update-go') && !shown('#update-copy'))
+      await set({ status: 'current', message: null })
+      check('update: up to date', q('#update-title').textContent === 'Stage is up to date' && !shown('#update-note'))
+      await set({ available: '0.6.0' })
+      check('update: a newer version replaces up to date', /0\.6\.0 is available/.test(q('#update-title').textContent ?? ''))
+
+      api.openOmnibox('new')
+      await sleep(50)
+      check('update: the omnibox replaces it and takes focus', !open() && omniOpen() && document.activeElement === input())
+      api.openUpdate()
+      await sleep(50)
+      check('update: it replaces the omnibox and takes focus', open() && !omniOpen() && focused())
+      key(document.activeElement ?? window, 'Escape')
+      await sleep(30)
+      check('update: Esc closes it', !open() && st.overlay === null)
+      await click('#update-btn')
+      check('update: reopening resets Copied', q('#update-copy').textContent === 'Copy Command')
+      q('#update-backdrop').dispatchEvent(new MouseEvent('mousedown', { bubbles: true, detail: 1 }))
+      await sleep(30)
+      check('update: backdrop closes it', !open())
+    }
+
     try {
       await sleep(500)
       if (suite === 'many') {
@@ -372,6 +516,12 @@
         const ar = q('#tabs .tab.active').getBoundingClientRect()
         const tr = tabs.getBoundingClientRect()
         check('many: active tab scrolled into view', ar.left >= tr.left - 1 && ar.right <= tr.right + 1, `${ar.left}..${ar.right} in ${tr.left}..${tr.right}`)
+        const update = q('#update-btn').getBoundingClientRect()
+        check('many: Update button stays inside the capsule', update.width > 0 && update.left >= tr.right - 4.5 && update.right <= cap.right, JSON.stringify(update))
+        return finish()
+      }
+      if (suite === 'update') {
+        await runUpdateChecks()
         return finish()
       }
 

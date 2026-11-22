@@ -1,10 +1,10 @@
 import { app, Menu, nativeImage, type BaseWindow, session as sessions, type Rectangle, type Session } from 'electron'
 import type { ElectronChromeExtensions } from 'electron-chrome-extensions'
 import { appendFileSync, existsSync, mkdtempSync, statSync, truncateSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { homedir, tmpdir } from 'node:os'
 import { basename, extname, join, resolve } from 'node:path'
 import { channel, type Overlay, type StageState, type TabLayout } from '../shared/contract'
-import { parseArgs, type LaunchArgs } from './cli-args'
+import { parseArgs, readHandoff, type Handoff, type LaunchArgs } from './cli-args'
 import type { BarFlags, Ctx } from './context'
 import { actionCount, createExtensions, setupExtensionStore } from './extensions'
 import { setupGoogleSignIn } from './google-sign-in'
@@ -14,10 +14,19 @@ import { Reveal } from './reveal'
 import { flushHistory, readPrefs, readSession, writePrefs, writeSession, type SavedSession } from './store'
 import { Tabs } from './tabs'
 import { UiWindow } from './ui-window'
+import { restartWarnings, trackDownload } from './restart-warnings'
+import { Updates } from './updates'
 import { resolveInput } from './url'
 import { BAR_HEIGHT, createWindow, SIDEBAR_WIDTH, tabBounds, uiBounds, WindowDrag } from './window'
+import { versionOf } from '../update/common'
+import { QUIT_RUNNING } from '../update/launcher'
+import { clearRunning, writeRunning } from '../update/running'
 
 const APP_ROOT = resolve(__dirname, '..', '..')
+// Read once: an update can replace the files under a running Stage.
+const VERSION = versionOf(APP_ROOT)
+const QUIT_FOR_RESTART_MS = 5000
+const FLUSH_COOKIES_MS = 2000
 const SELFTEST = !!process.env.STAGE_SELFTEST
 const PUSH_MS = 16
 const SAVE_MS = 500
@@ -26,17 +35,19 @@ const ERROR_LOG_MAX_BYTES = 1_000_000
 
 app.setName('Stage')
 if (SELFTEST && !process.env.STAGE_USER_DATA) process.env.STAGE_USER_DATA = mkdtempSync(join(tmpdir(), 'stage-selftest-'))
-app.setPath('userData', process.env.STAGE_USER_DATA || join(app.getPath('appData'), 'Stage'))
+app.setPath('userData', process.env.STAGE_USER_DATA ? resolve(process.env.STAGE_USER_DATA) : join(app.getPath('appData'), 'Stage'))
+const USER_DATA = app.getPath('userData')
+// Resolved now: boot leaves the package folder, which an update may move.
+const LOG_FILE = process.env.STAGE_LOG && resolve(process.env.STAGE_LOG)
 
 // Sites like Google and Okta reject "Electron" user agents as embedded browsers.
 const cleanUA = (ua: string) => ua.replace(/\s(?:Electron|stage-browser|Stage)\/\S+/gi, '')
 app.userAgentFallback = cleanUA(app.userAgentFallback)
 
 function log(msg: string): void {
-  const file = process.env.STAGE_LOG
-  if (!file) return
+  if (!LOG_FILE) return
   try {
-    appendFileSync(file, msg + '\n')
+    appendFileSync(LOG_FILE, msg + '\n')
   } catch {}
 }
 
@@ -56,7 +67,13 @@ if (!SELFTEST) {
   process.on('unhandledRejection', record('unhandledRejection'))
 }
 
-if (!SELFTEST && !app.requestSingleInstanceLock()) app.exit(0)
+const launch: LaunchArgs = SELFTEST ? { urls: [], size: null, pin: false, fresh: true } : parseArgs(process.argv, APP_ROOT)
+const asksToQuit = !SELFTEST && process.argv.includes(QUIT_RUNNING)
+const handoff: Handoff = { args: launch, quit: asksToQuit }
+const primary = SELFTEST || app.requestSingleInstanceLock({ ...handoff })
+// A quit request that got the lock found no Stage to quit.
+const runs = primary && !asksToQuit
+if (!runs) app.exit(0)
 
 class Stage implements Ctx {
   readonly session: Session
@@ -69,10 +86,13 @@ class Stage implements Ctx {
   readonly bar: BarFlags = { visible: false, pinned: false, hover: false }
   // Kept apart from session.json so --fresh doesn't reset them.
   readonly prefs = readPrefs()
+  readonly updates: Updates
   overlay: Overlay | null = null
   popupOpen = false
   quitting = false
   holdQuit = false
+  // Until the saved tabs are back, saving would write an empty list over them.
+  private restored = SELFTEST
 
   private pushTimer: ReturnType<typeof setTimeout> | undefined
   private saveTimer: ReturnType<typeof setTimeout> | undefined
@@ -88,6 +108,7 @@ class Stage implements Ctx {
     this.tabs = new Tabs(this)
     this.reveal = new Reveal(this)
     this.ext = createExtensions(this)
+    this.updates = new Updates(this, { root: APP_ROOT, version: VERSION, userData: USER_DATA, quit: () => void quitForRestart(), warnings: () => restartWarnings(this) })
     setupIpc(this)
     this.rebuildMenu()
 
@@ -136,6 +157,7 @@ class Stage implements Ctx {
       hideExtensionIcons: this.prefs.hideExtensionIcons,
       extensionActions: actionCount(this.session),
       overlay: this.overlay,
+      update: this.updates.state(),
       barHeight: BAR_HEIGHT,
       tabLayout: this.prefs.tabLayout,
       sidebarWidth: SIDEBAR_WIDTH,
@@ -167,7 +189,7 @@ class Stage implements Ctx {
   }
 
   private writeSessionNow(): void {
-    if (!this.live) return
+    if (!this.live || !this.restored) return
     const { list, activeId } = this.tabs
     const keepBounds = this.win.isFullScreen() || this.win.isMinimized()
     writeSession({
@@ -186,6 +208,12 @@ class Stage implements Ctx {
     this.prefs.hideExtensionIcons = hide
     writePrefs(this.prefs)
     this.push()
+    this.rebuildMenu()
+  }
+
+  setCheckForUpdates(check: boolean): void {
+    this.prefs.checkForUpdates = check
+    writePrefs(this.prefs)
     this.rebuildMenu()
   }
 
@@ -211,6 +239,11 @@ class Stage implements Ctx {
   }
 
   restore(saved: Partial<SavedSession>, args: LaunchArgs): void {
+    this.openFirstTabs(saved, args)
+    this.restored = true
+  }
+
+  private openFirstTabs(saved: Partial<SavedSession>, args: LaunchArgs): void {
     if (args.urls.some((u) => resolveInput(u))) return this.applyArgs(args, true)
     const urls = saved.tabs ?? []
     if (!urls.length) return void this.tabs.create()
@@ -230,11 +263,13 @@ class Stage implements Ctx {
     clearTimeout(this.saveTimer)
     this.drag.end()
     this.reveal.stop()
+    this.updates.stop()
   }
 }
 
 function setupDownloads(session: Session): void {
   session.on('will-download', (_e, item) => {
+    trackDownload(item)
     const dir = app.getPath('downloads')
     const name = item.getFilename()
     const ext = extname(name)
@@ -249,25 +284,51 @@ function setupDownloads(session: Session): void {
 }
 
 let stage: Stage | undefined
+let quittingForRestart = false
+
+// An update or `stage --restart` is waiting for this process to end.
+async function quitForRestart(): Promise<void> {
+  if (quittingForRestart) return
+  quittingForRestart = true
+  // A popup's beforeunload can veto a quit; everything worth keeping is written by then.
+  setTimeout(() => {
+    clearRunning(USER_DATA)
+    app.exit(0)
+  }, QUIT_FOR_RESTART_MS)
+  if (stage) {
+    stage.shutdown()
+    const { session } = stage
+    session.flushStorageData()
+    await Promise.race([session.cookies.flushStore().catch(() => {}), new Promise((r) => setTimeout(r, FLUSH_COOKIES_MS))])
+  }
+  app.quit()
+}
 
 async function boot(): Promise<void> {
+  if (!runs || quittingForRestart) return
+  if (!SELFTEST) {
+    writeRunning(USER_DATA, VERSION, false)
+    // Neither an update nor npx replacing the package should leave Stage in a deleted folder.
+    process.chdir(homedir())
+  }
+  app.setAboutPanelOptions({ applicationName: 'Stage', applicationVersion: VERSION, version: '' })
   const session = sessions.fromPartition('persist:stage')
   session.setUserAgent(cleanUA(session.getUserAgent()))
   setupGoogleSignIn(session)
   setupDownloads(session)
 
-  const args: LaunchArgs = SELFTEST ? { urls: [], size: null, pin: false, fresh: true } : parseArgs(process.argv, APP_ROOT)
-  const saved = args.fresh ? {} : readSession()
+  const saved = launch.fresh ? {} : readSession()
 
   const icon = join(APP_ROOT, 'build', 'icon.png')
   if (app.dock && existsSync(icon)) app.dock.setIcon(nativeImage.createFromPath(icon))
 
-  const s = new Stage(session, saved, args)
+  const s = new Stage(session, saved, launch)
   stage = s
 
   // Load installed extensions before the first page so content scripts attach to it.
   const timeout = new Promise<void>((r) => setTimeout(r, EXTENSIONS_TIMEOUT_MS))
   await Promise.race([setupExtensionStore(s).catch((e: Error) => console.error('[stage] extension setup failed', e.message)), timeout])
+  if (s.quitting) return
   s.rebuildMenu()
 
   s.win.show()
@@ -279,21 +340,28 @@ async function boot(): Promise<void> {
 
   // Loaded only here: the selftest is left out of the published package.
   if (SELFTEST) return void (require('./selftest') as typeof import('./selftest')).run(s)
-  s.restore(saved, args)
+  s.restore(saved, launch)
+  writeRunning(USER_DATA, VERSION, true)
+  s.updates.start()
   log('ready tabs=' + s.tabs.list.length)
 }
 
-app.on('second-instance', (_e, argv) => {
-  if (!stage || stage.win.isDestroyed()) return
+app.on('second-instance', (_e, argv, _cwd, data) => {
+  const { args, quit } = readHandoff(argv, data)
+  if (quit) return void quitForRestart()
+  if (!stage || stage.quitting || stage.win.isDestroyed()) return
   const { win } = stage
   if (win.isMinimized()) win.restore()
   win.show()
   win.focus()
   app.focus({ steal: true })
-  stage.applyArgs(parseArgs(argv, APP_ROOT), false)
+  stage.applyArgs(args, false)
 })
 
 app.on('before-quit', () => stage?.shutdown())
+app.on('will-quit', () => {
+  if (runs && !SELFTEST) clearRunning(USER_DATA)
+})
 app.on('window-all-closed', () => !stage?.holdQuit && app.quit())
 
 app

@@ -21,7 +21,32 @@ export interface OmniboxOverlay {
   nonce: number
 }
 
-export type Overlay = OmniboxOverlay
+export interface UpdateOverlay {
+  type: 'update'
+  nonce: number
+}
+
+export type Overlay = OmniboxOverlay | UpdateOverlay
+
+export type UpdateStep = 'download' | 'verify' | 'prepare' | 'runtime'
+
+// `ready` waits for a click: the popover was closed while it downloaded, and Stage never restarts
+// unless the person is looking at that popover.
+export type UpdateStatus = 'idle' | 'checking' | 'current' | 'working' | 'ready' | 'restarting' | 'error'
+
+export interface UpdateState {
+  current: string
+  available: string | null
+  status: UpdateStatus
+  step: UpdateStep | null
+  percent: number | null
+  message: string | null
+  // false: only the command updates this install.
+  canInstall: boolean
+  command: string
+  /** What restarting now would lose, shown before the person confirms. */
+  warnings: string[]
+}
 
 // Where the tab bar sits: a capsule across the top, or a vertical sidebar on one side.
 export type TabLayout = 'top' | 'left' | 'right'
@@ -43,6 +68,7 @@ export interface StageState {
   hideExtensionIcons: boolean
   extensionActions: number
   overlay: Overlay | null
+  update: UpdateState
   barHeight: number
   tabLayout: TabLayout
   sidebarWidth: number
@@ -80,6 +106,11 @@ export interface UiCommands {
   startWindowDrag: []
   endWindowDrag: []
   windowAction: [action: WindowAction]
+  openUpdate: []
+  // None takes an argument: the version, command and paths are the main process's own.
+  installUpdate: []
+  cancelUpdate: []
+  copyUpdateCommand: []
 }
 
 export interface UiQueries {

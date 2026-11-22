@@ -1,11 +1,12 @@
 // Scripted self-test: `npm run selftest`. No human input. Writes results.json and PNGs, exits 0 or 1.
 import { app, BaseWindow, BrowserWindow, Menu, screen, shell, type NativeImage, type Rectangle, type Size } from 'electron'
+import { execFileSync } from 'node:child_process'
 import { createHash, generateKeyPairSync, sign } from 'node:crypto'
-import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync, existsSync } from 'node:fs'
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 import { crc32 } from 'node:zlib'
-import { parseArgs } from './cli-args'
+import { parseArgs, readHandoff } from './cli-args'
 import type { Ctx } from './context'
 import { idFromPublicKey, unzip, verifyCrx } from './crx'
 import { installed, type ActionPopup } from './extensions'
@@ -15,6 +16,13 @@ import { readPrefs } from './store'
 import { suggest } from './suggest'
 import { NEWTAB_FILE, type Tab } from './tabs'
 import { resolveInput } from './url'
+import { NAME, launcherOf, updatesDir } from '../update/common'
+import { detectInstall, type InstallKind } from '../update/install'
+import { unpack } from '../update/package'
+import { parseLatest, readCapped } from '../update/registry'
+import { CONFIRM_AFTER_MS, afterSighting, availableVersion, isDue, type CheckState } from '../update/state'
+import { verifyProvenance } from '../update/verify'
+import { isNewer, isStable } from '../update/version'
 import { SHADOW_ROOM, SIDEBAR_WIDTH } from './window'
 import { extensionsDir, install, installCrx, remove, webStoreId } from './web-store'
 
@@ -339,6 +347,146 @@ export async function run(ctx: Ctx): Promise<void> {
   await check('cli-args parsing', async () => {
     const a = parseArgs(['electron', '.', '--inspect=1', '--size', '1280x720', 'a.com', '--pin', '--fresh', 'hello world'])
     return { pass: a.pin && a.fresh && a.size?.width === 1280 && a.size.height === 720 && a.urls.join('|') === 'a.com|hello world', detail: JSON.stringify(a) }
+  })
+
+  await check('second launch: urls only, never the install path, and quit only when sent', async () => {
+    const root = '/opt/lib/node_modules/stage-browser'
+    const old = readHandoff(['/x/Electron', '--pin', '--allow-file-access', root, 'a.com', 'hello world'], undefined)
+    const sized = readHandoff(['/x/Electron', '--size', '--allow-file-access', root, 'a.com', '800x600'], undefined)
+    const dot = readHandoff(['/x/Electron', '.', 'a.com'], null)
+    const sent = readHandoff(['/x/Electron', '--quit-running', '.', 'ignored'], { args: { urls: ['b.com', 7, 'x'.repeat(40_000)], size: { width: '1;2', height: 5 }, pin: 'yes', fresh: true }, quit: false })
+    const spoofed = readHandoff(['/x/Electron', '.', '--quit-running'], undefined)
+    const quit = readHandoff([], { args: { urls: [] }, quit: true })
+    const ok = old.args.urls.join('|') === 'a.com|hello world' && old.args.pin && dot.args.urls.join('|') === 'a.com'
+    const strict = sent.args.urls.join('|') === 'b.com' && !sent.args.size && !sent.args.pin && sent.args.fresh && !sent.quit && !spoofed.quit && quit.quit
+    const moved = sized.args.urls.join('|') === 'a.com' && sized.args.size?.width === 800
+    return { pass: ok && strict && moved, detail: JSON.stringify({ old, dot, sized, sent, spoofed }) }
+  })
+
+  await check('update versions: releases only, never a downgrade', async () => {
+    const valid = ['0.0.1', '10.20.30'].every(isStable)
+    const invalid = ['1.2', 'v1.2.3', '01.2.3', '1.2.3-rc.1', '../../x', '1.2.3\n', '1.2.3/..', 1, null].every((v) => !isStable(v))
+    const order = isNewer('0.10.0', '0.9.9') && isNewer('1.0.0', '1.0.0-rc.1') && !isNewer('1.0.0', '1.0.0') && !isNewer('0.3.2', '0.4.0') && !isNewer('junk', '0.4.0')
+    let refused = 0
+    for (const body of ['{"latest":"latest"}', '{"latest":"../1.0.0"}', '[]', 'null', '<html>']) {
+      try {
+        parseLatest(Buffer.from(body))
+      } catch {
+        refused++
+      }
+    }
+    const capped = await readCapped(new Response('x'.repeat(5000)), 4096).then(() => false, () => true)
+    return { pass: valid && invalid && order && refused === 5 && capped, detail: `valid=${valid} invalid=${invalid} order=${order} refused=${refused}/5 capped=${capped}` }
+  })
+
+  await check('update news: second sighting an hour later, withdrawn releases disappear', async () => {
+    const t = 1_800_000_000_000
+    const h = CONFIRM_AFTER_MS
+    const none: CheckState = { latest: null, latestAt: 0, announced: null, attemptedAt: 0, attemptFailed: false, updateFailed: false }
+    const first = afterSighting(none, '0.5.0', '0.4.0', t, false)
+    const early = afterSighting(first, '0.5.0', '0.4.0', t + h - 1, false)
+    const second = afterSighting(first, '0.5.0', '0.4.0', t + h, false)
+    const byHand = afterSighting(none, '0.5.0', '0.4.0', t, true)
+    const newer = afterSighting(second, '0.6.0', '0.4.0', t + 2 * h, false)
+    const pulled = afterSighting(second, '0.4.0', '0.4.0', t + 2 * h, false)
+    const shown = [first, early, second, byHand, newer, pulled].map((x) => availableVersion(x, '0.4.0') ?? '-').join(' ')
+    const due = !isDue(first, '0.4.0', t + h - 1) && isDue(first, '0.4.0', t + h) && !isDue(second, '0.4.0', t + h + h) && isDue(second, '0.4.0', t + h + 24 * h)
+    return { pass: shown === '- - 0.5.0 0.5.0 0.5.0 -' && due, detail: `shown=${shown} due=${due}` }
+  })
+
+  await check('update install kinds: only npx, staged and own global copies install themselves; locked ones get sudo', async () => {
+    const base = mkdtempSync(join(tmpdir(), 'stage-kinds-'))
+    const userData = join(base, 'profile')
+    const copy = (...at: string[]) => {
+      const root = join(base, ...at)
+      mkdirSync(join(root, 'dist', 'bin'), { recursive: true })
+      writeFileSync(launcherOf(root), '')
+      return root
+    }
+    const global = copy('prefix', 'lib', 'node_modules', NAME)
+    mkdirSync(join(base, 'prefix', 'bin'))
+    symlinkSync(launcherOf(global), join(base, 'prefix', 'bin', 'stage'))
+    const system = copy('locked', 'lib', 'node_modules', NAME)
+    mkdirSync(join(base, 'locked', 'bin'))
+    symlinkSync(launcherOf(system), join(base, 'locked', 'bin', 'stage'))
+    const locked = [dirname(system), system]
+    for (const dir of locked) chmodSync(dir, 0o555)
+    const cases: [root: string, want: InstallKind][] = [
+      [copy('checkout'), 'dev'],
+      [copy('.npm', '_npx', 'bad26ad5956fda27', 'node_modules', NAME), 'npx'],
+      [global, 'global'],
+      [system, 'system'],
+      [copy('other', 'lib', 'node_modules', NAME), 'manual'],
+      [copy('project', 'node_modules', NAME), 'manual'],
+      [copy('.volta', 'tools', 'lib', 'node_modules', NAME), 'manual'],
+      [copy('profile', 'Updates', '0.5.0'), 'staged'],
+    ]
+    mkdirSync(updatesDir(userData), { recursive: true })
+    const got = cases.map(([root]) => detectInstall(root, userData))
+    for (const dir of locked) chmodSync(dir, 0o755)
+    rmSync(base, { recursive: true, force: true })
+    const bad = cases.flatMap(([root, want], i) => (got[i]?.kind === want ? [] : [`${root} -> ${got[i]?.kind} (want ${want})`]))
+    const leak = got.some((i) => i.command.includes(base))
+    const sudo = got[cases.findIndex(([root]) => root === system)]?.command.startsWith('sudo npm i -g ')
+    return { pass: !bad.length && !leak && !!sudo, detail: `${bad.join('; ')} pathInCommand=${leak} sudo=${sudo}` }
+  })
+
+  await check('update packages: unsigned, linked, misnamed and incomplete ones are refused', async () => {
+    const base = mkdtempSync(join(tmpdir(), 'stage-unpack-'))
+    const accepts = (name: string, pkg: object, link?: string): boolean => {
+      const src = join(base, name, 'package')
+      const dest = join(base, name, 'dest')
+      mkdirSync(join(src, 'dist', 'bin'), { recursive: true })
+      mkdirSync(dest)
+      writeFileSync(launcherOf(src), '')
+      writeFileSync(join(src, 'package.json'), JSON.stringify(pkg))
+      if (link) symlinkSync(link, join(src, 'escape'))
+      const made = join(base, name, 'made.tgz')
+      execFileSync('/usr/bin/tar', ['-czf', made, '-C', join(base, name), 'package'])
+      try {
+        unpack(readFileSync(made), join(base, name, 'received.tgz'), dest, '9.9.9')
+        return true
+      } catch {
+        return false
+      }
+    }
+    const good = accepts('good', { name: NAME, version: '9.9.9' })
+    const bad = [accepts('link', { name: NAME, version: '9.9.9' }, '/etc/hosts'), accepts('name', { name: 'other', version: '9.9.9' }), accepts('version', { name: NAME, version: '9.9.8' }), accepts('dependency', { name: NAME, version: '9.9.9', dependencies: { missing: '1.0.0' } })]
+    rmSync(base, { recursive: true, force: true })
+    let unsigned = 0
+    for (const attestations of [null, {}, { attestations: [] }, { attestations: [{ predicateType: 'https://slsa.dev/provenance/v1', bundle: {} }] }]) {
+      try {
+        verifyProvenance(attestations, Buffer.alloc(1), '9.9.9', {} as Parameters<typeof verifyProvenance>[3])
+      } catch {
+        unsigned++
+      }
+    }
+    return { pass: good && !bad.includes(true) && unsigned === 4, detail: `good=${good} bad=${bad} unsigned=${unsigned}/4` }
+  })
+
+  await check('update popover: protected, focused, out of reach of pages', async () => {
+    const page: string = await t1.wc.executeJavaScript('typeof window.stage')
+    await ui.executeJavaScript('window.stage.openUpdate()')
+    await waitFor(() => ctx.overlay?.type === 'update', 3000)
+    const open: { shown: boolean; focus: string } = await waitFor(
+      () => ui.executeJavaScript("document.querySelector('#update').hidden ? null : { shown: document.querySelector('#update-panel').getClientRects().length > 0, focus: document.activeElement.id }"),
+      3000,
+    )
+    const protectedUi = uiWin.isContentProtected()
+    await ui.executeJavaScript('window.stage.installUpdate()') // a source checkout never installs
+    await sleep(200)
+    const { status, canInstall } = ctx.getState().update
+    await ui.executeJavaScript('window.stage.closeOverlay()')
+    await waitFor(() => ctx.overlay === null, 3000)
+    const pass = page === 'undefined' && open.shown && open.focus === 'update-panel' && protectedUi && status === 'idle' && !canInstall
+    return { pass, detail: JSON.stringify({ page, ...open, protectedUi, status, canInstall }) }
+  })
+
+  await check('update check: asks npm by hand and reports', async () => {
+    await ctx.updates.checkByHand()
+    const { status, available, message } = ctx.getState().update
+    ctx.reveal.closeOverlay()
+    return { pass: status === 'current' || (status === 'idle' && !!available), detail: JSON.stringify({ status, available, message }) }
   })
 
   await check('activate / close / reopen closed tab', async () => {

@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { TAB_LAYOUTS, type TabLayout } from '../shared/contract'
 
 export interface Prefs {
+  checkForUpdates: boolean
   hideExtensionIcons: boolean
   tabLayout: TabLayout
 }
@@ -47,7 +48,7 @@ export function readPrefs(): Prefs {
   const saved = readJson<Partial<Prefs>>('prefs.json', {})
   // A hand-edited or future value falls back to the top bar.
   const tabLayout = TAB_LAYOUTS.find((l) => l === saved.tabLayout) ?? 'top'
-  return { hideExtensionIcons: false, ...saved, tabLayout }
+  return { hideExtensionIcons: false, ...saved, checkForUpdates: saved.checkForUpdates !== false, tabLayout }
 }
 export const writePrefs = (prefs: Prefs) => writeJson('prefs.json', prefs)
 export const readSession = (): Partial<SavedSession> => readJson<Partial<SavedSession>>('session.json', {})

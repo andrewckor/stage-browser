@@ -1,5 +1,5 @@
 import { screen } from 'electron'
-import type { OmniboxMode } from '../shared/contract'
+import type { OmniboxMode, Overlay } from '../shared/contract'
 import type { Ctx } from './context'
 import { BAR_HEIGHT, SIDEBAR_WIDTH } from './window'
 
@@ -130,7 +130,7 @@ export class Reveal {
   }
 
   // The layout changed: drop the old geometry's window and pointer capture. A pinned bar or an open
-  // omnibox stays up, in its new place.
+  // overlay stays up, in its new place.
   relayout(): void {
     const { ctx } = this
     this.awaySince = null
@@ -167,9 +167,17 @@ export class Reveal {
   }
 
   openOverlay(mode: OmniboxMode, initial: string): void {
+    this.open({ type: 'omnibox', mode, initial, nonce: Date.now() })
+  }
+
+  openUpdate(): void {
+    this.open({ type: 'update', nonce: Date.now() })
+  }
+
+  private open(overlay: Overlay): void {
     const { ctx } = this
     if (!this.live) return
-    ctx.overlay = { type: 'omnibox', mode, initial, nonce: Date.now() }
+    ctx.overlay = overlay
     this.show()
     ctx.layout()
     ctx.flush()

@@ -28,6 +28,9 @@
       <button id="new-tab" class="icon-btn" type="button" aria-label="New tab" title="New tab (⌘T)">
         <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M8 3.5v9M3.5 8h9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
       </button>
+      <button id="update-btn" type="button" aria-haspopup="dialog" aria-expanded="false" hidden>
+        <span class="dot" aria-hidden="true"></span><span id="update-label">Update</span>
+      </button>
       <div id="controls">
         <span class="divider" aria-hidden="true"></span>
         <browser-action-list partition="persist:stage" alignment="bottom right"></browser-action-list>
@@ -46,6 +49,25 @@
                placeholder="Search or enter address" aria-label="Search or enter address">
       </div>
       <div id="omni-list" role="listbox" aria-label="Suggestions"></div>
+    </div>
+  </div>
+
+  <!-- Update popover (shown when state.overlay.type === 'update'). -->
+  <div id="update" hidden>
+    <div id="update-backdrop"></div>
+    <div id="update-panel" role="dialog" aria-modal="true" aria-labelledby="update-title" tabindex="-1">
+      <div aria-live="polite">
+        <h2 id="update-title"></h2>
+        <p id="update-detail"></p>
+      </div>
+      <div id="update-progress" role="progressbar" aria-label="Update progress" hidden><span id="update-fill"></span></div>
+      <p id="update-note" hidden></p>
+      <code id="update-command" hidden></code>
+      <div id="update-actions">
+        <button id="update-copy" type="button" hidden>Copy Command</button>
+        <button id="update-dismiss" type="button">Close</button>
+        <button id="update-go" class="primary" type="button" hidden></button>
+      </div>
     </div>
   </div>
 

@@ -1,10 +1,14 @@
 #!/usr/bin/env node
-import { execFileSync, spawn } from 'node:child_process'
+import { execFileSync, spawn, type ChildProcess } from 'node:child_process'
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto'
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, renameSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs'
 import { open, type FileHandle } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { basename, dirname, join, resolve, sep } from 'node:path'
+import { NODE_ENV, UpdateError, launcherOf, userDataDir, userNode } from '../update/common'
+import { KEEP_RUNTIMES, PREPARE_RUNTIME, QUIT_RUNNING } from '../update/launcher'
+import { ADDED_ENV, networkEnv, withAdded, withoutAdded } from '../update/network'
+import { launchNotice } from '../update/notice'
 
 interface PackageJson {
   version: string
@@ -12,6 +16,8 @@ interface PackageJson {
 
 const root = resolve(dirname(realpathSync(__filename)), '..', '..')
 const args = process.argv.slice(2)
+// Paths in the environment are relative to where `stage` was typed, and an update changes directory.
+for (const name of ['STAGE_USER_DATA', 'STAGE_LOG']) if (process.env[name]) process.env[name] = resolve(process.env[name])
 const readJson = <T>(file: string): T => JSON.parse(readFileSync(file, 'utf8')) as T
 const pkg = readJson<PackageJson>(join(root, 'package.json'))
 
@@ -24,7 +30,12 @@ Usage:
   stage --pin                  start with the tab bar pinned
   stage --fresh                skip the saved session
   stage --fg                   run in the foreground with logs in the terminal
+  stage update                 update Stage, then reopen it with the same tabs
+  stage --restart              restart the open Stage into this installed version
   stage --help | --version
+
+Stage asks npm once a day whether a new version exists. STAGE_NO_UPDATE_CHECK=1
+turns that off, as does Stage > Check for Updates Automatically.
 `
 
 // macOS takes the bold app name in the menu bar, the Dock label and the icon from the app bundle,
@@ -79,6 +90,8 @@ const runtimeReady = (dir: string, binary: string) => existsSync(join(dir, '.rea
  * Only `electron-*` folders: the lock and temp files are not ours to touch here.
  */
 function pruneOld(base: string, keep: string): void {
+  // An update may still need the previous runtime to roll back to.
+  if (process.env[KEEP_RUNTIMES] || args[0] === PREPARE_RUNTIME) return
   try {
     const others = readdirSync(base).filter((name) => name.startsWith('electron-') && name !== basename(keep))
     if (!others.length) return
@@ -182,8 +195,11 @@ async function downloadVerified(url: string, dest: string, expectedHex: string):
       if (received > MAX_DOWNLOAD_BYTES) throw new Error('download is larger than expected')
       hash.update(chunk)
       await file.write(chunk)
-      if (tty && Date.now() - shown > 100) {
-        shown = Date.now()
+      if (Date.now() - shown <= 100) continue
+      shown = Date.now()
+      // An updater listens on this channel (docs/CONTRACT.md, "Updates").
+      if (process.connected) process.send?.({ received, total })
+      if (tty) {
         process.stderr.write(`\r\x1b[K${label} ${mb(received)} MB${total ? ` / ${mb(total)} MB` : ''}`)
       }
     }
@@ -322,17 +338,132 @@ async function findRuntime(): Promise<string> {
   return process.env.STAGE_PLAIN_ELECTRON ? dev.binary : cloneRuntime(dev.binary, dev.version)
 }
 
+// `--size=WxH` in one piece: handed to an open Stage, switches move to the front, and a value left
+// behind would open as a search.
+function joinSize(appArgs: readonly string[]): string[] {
+  const out = [...appArgs]
+  const at = out.indexOf('--size')
+  const value = out[at + 1]
+  if (at >= 0 && value && !value.startsWith('-')) out.splice(at, 2, `--size=${value}`)
+  return out
+}
+
+/**
+ * Electron always gets `.` with the package as its working directory, never the install path: an
+ * older Stage that is still open opens arguments it doesn't know as tabs, in front of an audience.
+ */
+function appProcess(binary: string, appArgs: readonly string[], stdio: 'inherit' | 'ignore', detached: boolean) {
+  const env = withoutAdded(process.env)
+  delete env.ELECTRON_RUN_AS_NODE
+  delete env[KEEP_RUNTIMES]
+  delete env[HANDED_OFF]
+  // The updater runs on Stage's Node, and checks a new version against the one `stage` runs on.
+  const node = userNode()
+  if (node) env[NODE_ENV] = node
+  else delete env[NODE_ENV]
+  return spawn(binary, ['.', ...joinSize(appArgs)], { cwd: root, env, stdio, detached })
+}
+
+const HANDED_OFF = 'STAGE_HANDED_OFF'
+
+/**
+ * Passes signals on to a `stage` run in a child process. ⌃C in a terminal reaches both already, but a
+ * signal sent to this process alone would otherwise leave the child running. A second one is harmless.
+ */
+function relaySignals(child: ChildProcess): void {
+  for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP'] as const) {
+    process.on(signal, () => {
+      if (child.exitCode === null && child.signalCode === null) child.kill(signal)
+    })
+  }
+}
+
+/**
+ * Opens a newer Stage that this profile has run before, such as one installed under another Node
+ * version, so the profile never goes back to an older Chromium (src/update/newest.ts).
+ */
+function openNewer(): boolean {
+  // Not from an updater, which picks the version itself, and never from a source checkout.
+  if (process.versions.electron || process.env[HANDED_OFF] || checkoutElectron()) return false
+  const { newerInstall } = require('../update/newest') as typeof import('../update/newest')
+  const userData = userDataDir()
+  const newer = newerInstall(userData, pkg.version, process.version)
+  if (!newer) return false
+  if (newer.needs) {
+    process.stderr.write(`stage: Stage ${newer.version} is installed too, but needs Node ${newer.needs}. Opening ${pkg.version}.\n`)
+    return false
+  }
+  const { detectInstall } = require('../update/install') as typeof import('../update/install')
+  const here = detectInstall(root, userData)
+  // An npx copy's updates are staged in the profile, so opening one is the usual way, not news.
+  const own = (here.kind === 'npx' || here.kind === 'staged') && detectInstall(newer.root, userData).kind === 'staged'
+  const hint = here.updateHint
+  if (!own) process.stderr.write(`stage: opening Stage ${newer.version}, the newest one installed${hint ? `. Run \`${hint}\` to update this one (${pkg.version})` : ''}.\n`)
+  const child = spawn(process.execPath, [launcherOf(newer.root), ...args], { stdio: 'inherit', env: { ...process.env, [HANDED_OFF]: '1' } })
+  relaySignals(child)
+  child.on('error', (e) => fail(`could not open Stage ${newer.version}: ${e.message}`))
+  child.on('exit', (code, signal) => process.exit(signal ? 1 : (code ?? 0)))
+  return true
+}
+
+async function quitRunning(): Promise<void> {
+  const child = appProcess(await findRuntime(), [QUIT_RUNNING], 'ignore', false)
+  child.on('error', () => process.exit(1))
+  child.on('exit', (code) => process.exit(code ?? 1))
+}
+
+/** Runs `stage update` again with Node set to use the keychain and any proxy in the environment. */
+function withNetworkEnv(): boolean {
+  if (process.env[ADDED_ENV] !== undefined || !process.argv[1]) return false
+  const added = networkEnv(process.env)
+  if (!Object.keys(added).length) return false
+  const child = spawn(process.execPath, [...process.execArgv, process.argv[1], ...args], { stdio: 'inherit', env: withAdded(process.env, added) })
+  relaySignals(child)
+  child.on('error', (e) => fail(`could not update: ${e.message}`))
+  child.on('exit', (code, signal) => process.exit(signal ? 1 : (code ?? 0)))
+  return true
+}
+
+async function runCommand(name: 'update' | 'restart'): Promise<void> {
+  if (name === 'update' && withNetworkEnv()) return
+  // Loaded here so a plain launch stays quick, and before an update moves any file.
+  const commands = require('../update/commands') as typeof import('../update/commands')
+  try {
+    await commands[name]({ root, version: pkg.version, userData: userDataDir() })
+    process.exit(0)
+  } catch (e) {
+    fail(e instanceof UpdateError ? e.message : `could not ${name}: ${(e as Error).message}`)
+  }
+}
+
 async function main(): Promise<void> {
   if (args.includes('--help') || args.includes('-h')) return void process.stdout.write(HELP)
   if (args.includes('--version') || args.includes('-v')) return console.log(pkg.version)
 
+  if (args[0] === PREPARE_RUNTIME) {
+    // The channel closing means the update was cancelled.
+    if (process.connected) process.on('disconnect', () => process.exit(130))
+    await findRuntime()
+    process.exit(0)
+  }
+  if (args[0] === QUIT_RUNNING) return quitRunning()
+  if (args.includes('--restart')) {
+    if (args.length > 1) fail('--restart takes no other arguments.')
+    return runCommand('restart')
+  }
+  // Only on its own, so `stage update my profile` still searches.
+  if (args.length === 1 && args[0] === 'update') return runCommand('update')
+  if (openNewer()) return
+
   const binary = await findRuntime()
+  const notice = launchNotice(root, pkg.version, userDataDir())
   const fg = args.includes('--fg')
-  const child = spawn(binary, [root, ...args], fg ? { stdio: 'inherit' } : { detached: true, stdio: 'ignore' })
+  const child = appProcess(binary, args, fg ? 'inherit' : 'ignore', !fg)
   child.on('error', (e) => {
     console.error('stage: failed to launch: ' + e.message)
     process.exit(1)
   })
+  if (notice) process.stderr.write(`stage: ${notice}\n`)
   if (fg) {
     child.on('exit', (code, signal) => process.exit(signal ? 1 : (code ?? 0)))
   } else {

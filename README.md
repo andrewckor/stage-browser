@@ -68,9 +68,26 @@ stage --size 1280x720 …      set the window's content size
 stage --pin                  start with the tab bar pinned
 stage --fresh                skip the saved session
 stage --fg                   run in the foreground with logs in the terminal
+stage update                 update Stage, then reopen it with the same tabs
+stage --restart              restart the open Stage into this installed version
 ```
 
 If Stage is already running, `stage <url>` opens the URL as a tab in the running window.
+
+## Staying up to date.
+
+When a new version is out, **Update** appears in the tab bar the next time you reach for it. Stage never reveals the bar for it, pops up or restarts by itself, so it's safe while someone is watching your screen. Click **Update**, then **Update and Restart**: Stage downloads the release, checks npm's signed provenance, and reopens with the same tabs. Unsaved page input, downloads and calls are lost, as with any restart, so Stage says first if a download is running, a tab is playing sound or a page may have unsaved changes.
+
+From the terminal, `stage` prints one line when an update is waiting.
+
+| How you run Stage | Update button | Or in the terminal |
+| --- | --- | --- |
+| `npx` | Updates and restarts | `npx stage-browser@latest --restart` |
+| `npm i -g` | Updates and restarts | `stage update` |
+| pnpm, Bun, Volta, a project or a folder that needs sudo | Gives you the command to copy | The command it shows |
+| A clone of this repo | Not shown | `git pull && npm ci && npm run build && npm start` |
+
+**Stage → Check for Updates…** looks right away. Versions before 0.4.0 can't restart themselves: quit with <kbd>⌘Q</kbd>, then run `npx stage-browser@latest`.
 
 ## Hands on the keys.
 
@@ -115,6 +132,9 @@ In `~/Library/Application Support/Stage`. npx, a global install and a clone all 
 **Can I sign in to Google?**
 Yes. Google blocks sign-in from browsers built on Electron, so on `accounts.google.com`, and only there, Stage tells Google it is Firefox, which Google accepts. Gmail, YouTube and every other site see Stage's normal Chrome user agent.
 
+**What does the update check send?**
+Once a day, while you're using your Mac, Stage asks registry.npmjs.org for the newest version number, and asks again an hour after it first sees one. The request carries no cookies, identifiers or installed version, though npm sees your IP address as with any download. Updating also fetches the release from npm and the signing keys from Sigstore. Turn the check off with **Stage → Check for Updates Automatically**, or start Stage with `STAGE_NO_UPDATE_CHECK=1`.
+
 **Does every extension work?**
 Most do. Extensions that talk to a desktop app, such as 1Password's desktop unlock, can't connect, because Electron doesn't support Chrome's native messaging. Sign in inside the extension instead.
 
@@ -138,7 +158,7 @@ npm run selftest       # scripted end-to-end checks; writes selftest-out/results
 npm run ui:preview     # render the tab bar and address box in mock mode with headless Chrome
 ```
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request. [`docs/CONTRACT.md`](docs/CONTRACT.md) describes the window layout and the interface between the main process (`src/main/`) and the overlay UI (`src/ui/`). The website lives in [`site/`](site/).
+See [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request. [`docs/CONTRACT.md`](docs/CONTRACT.md) describes the window layout and the interface between the main process (`src/main/`) and the overlay UI (`src/ui/`). The website is [stagebrowser.com](https://stagebrowser.com).
 
 ---
 

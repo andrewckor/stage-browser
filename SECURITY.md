@@ -8,7 +8,7 @@ Include the Stage version (`stage --version`, or **Stage → About Stage**), you
 
 ## Supported versions
 
-Only the latest release on npm gets security fixes. `npx stage-browser@latest` or `npm i -g stage-browser` gets you onto it.
+Only the latest release on npm gets security fixes. **Update** in the tab bar, `stage update` from a global npm install, or `npx stage-browser@latest --restart` gets you onto it. Before 0.4.0, quit Stage and run `npx stage-browser@latest`.
 
 ## What's in scope
 
@@ -16,6 +16,10 @@ Anything that lets a web page, an extension or a download do more than it should
 
 - A web page reaching Stage's own UI, its IPC channels or Node.js.
 - Installing or updating an extension without its Chrome Web Store signature being verified, or with more access than you approved.
+- Updating Stage to a release without npm provenance from this repository's release workflow, to an older release, or without you asking.
+- An update running `sudo` or asking for your password. For an install it can't write to, Stage only shows the command.
+- The `stage` command handing off to a copy of Stage outside an npm install, or to one that isn't newer than itself.
+- The restart check running code in a page. It only lists the page's listeners.
 - Running a Chromium runtime that doesn't match its pinned SHA-256.
 - The `stage` command opening something other than the URL it was given.
 - Saved sessions, cookies or logins readable by another site.

@@ -26,4 +26,24 @@ for (const arch of ['arm64', 'x64']) {
   sha256[arch] = hash
 }
 
+// The updater installs the signed tarball as it is, so everything that runs must be inside it.
+const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'))
+const loose = Object.keys(pkg.dependencies ?? {}).filter((name) => !pkg.bundleDependencies?.includes(name))
+if (loose.length) {
+  console.error(`write-runtime: add ${loose.join(', ')} to bundleDependencies in package.json`)
+  process.exit(1)
+}
+
+// npm holds bundled packages to their own `engines` on an upgrade, but not on a first install.
+// Sigstore names only recent Node patch releases, so on an older Node 22 or 24 the next upgrade
+// would warn thirty times, or fail with engine-strict. The bundle ships as one package with one
+// range, Stage's own, so this drops that one metadata field in node_modules before npm packs it.
+const lock = JSON.parse(readFileSync(join(root, 'package-lock.json'), 'utf8'))
+for (const [dir, entry] of Object.entries(lock.packages)) {
+  if (!dir || entry.dev) continue
+  const file = join(root, dir, 'package.json')
+  const { engines, ...meta } = JSON.parse(readFileSync(file, 'utf8'))
+  if (engines) writeFileSync(file, JSON.stringify(meta, null, 2) + '\n')
+}
+
 writeFileSync(join(root, 'dist', 'runtime.json'), JSON.stringify({ electron: version, sha256 }, null, 2) + '\n')

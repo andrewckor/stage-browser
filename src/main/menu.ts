@@ -66,11 +66,22 @@ export function buildMenu(ctx: Ctx): Menu {
     ],
   }))
 
+  const { available } = ctx.updates.state()
+
   return Menu.buildFromTemplate([
     {
       label: 'Stage',
       submenu: [
         { role: 'about', label: 'About Stage' },
+        available
+          ? { label: `Update to Stage ${available}…`, click: () => ctx.updates.open() }
+          : { label: 'Check for Updates…', click: () => void ctx.updates.checkByHand() },
+        {
+          label: 'Check for Updates Automatically',
+          type: 'checkbox',
+          checked: ctx.prefs.checkForUpdates,
+          click: (item) => ctx.setCheckForUpdates(item.checked),
+        },
         { type: 'separator' },
         { role: 'hide', label: 'Hide Stage' },
         { role: 'hideOthers' },
