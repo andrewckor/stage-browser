@@ -38,7 +38,7 @@ Usage:
 //   unpack the 120 MB runtime twice. Instead the first launch downloads the official zip once,
 //   checks it against the SHA-256 pinned in dist/runtime.json at build time, and unpacks it with
 //   ditto. Later versions that use the same Electron version find the runtime and start at once.
-const RUNTIME_REVISION = 2 // bump when the bundle edits or build/icon.icns change
+const RUNTIME_REVISION = 3 // bump when the bundle edits or build/icon.icns change
 
 const MAX_DOWNLOAD_BYTES = 300 * 1024 * 1024
 const STALL_TIMEOUT_MS = 60_000

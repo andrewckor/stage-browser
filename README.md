@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="build/icon.png" width="112" height="112" alt="Stage icon: a one-bit pixel browser window with a red record dot">
+  <img src="build/icon.png" width="112" height="112" alt="Stage icon: a glowing red screen on a dark tile, dissolving into grey pixels above and below">
 </p>
 
 <h1 align="center">Stage</h1>
