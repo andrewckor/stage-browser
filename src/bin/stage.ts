@@ -74,9 +74,22 @@ const runtimeBase = () => join(homedir(), 'Library', 'Application Support', 'Sta
 const runtimeDir = (base: string, version: string) => join(base, `electron-${version}-r${RUNTIME_REVISION}`)
 const runtimeReady = (dir: string, binary: string) => existsSync(join(dir, '.ready')) && existsSync(binary)
 
-/** Removes runtimes of other Electron versions. Only `electron-*` folders: the lock and temp files are not ours to touch here. */
+/**
+ * Removes other runtimes that no process is using. One that is still open goes on a later launch.
+ * Only `electron-*` folders: the lock and temp files are not ours to touch here.
+ */
 function pruneOld(base: string, keep: string): void {
-  for (const old of readdirSync(base)) if (old.startsWith('electron-') && old !== basename(keep)) rmSync(join(base, old), { recursive: true, force: true })
+  try {
+    const others = readdirSync(base).filter((name) => name.startsWith('electron-') && name !== basename(keep))
+    if (!others.length) return
+    const running = execFileSync('ps', ['-axww', '-o', 'command='], { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024, stdio: ['ignore', 'pipe', 'ignore'] })
+    for (const old of others) {
+      // Match the folder, not the whole path: ps escapes non-ASCII home folders in some locales.
+      if (!running.includes(`/${old}/Stage.app`)) rmSync(join(base, old), { recursive: true, force: true })
+    }
+  } catch {
+    // old runtimes are only disk space; without a process list none of them is safe to remove
+  }
 }
 
 // Dev checkout: clone the Electron.app from node_modules.
@@ -87,7 +100,10 @@ function cloneRuntime(electronBinary: string, version: string): string {
   const dir = runtimeDir(base, version)
   const app = join(dir, 'Stage.app')
   const binary = join(app, 'Contents', 'MacOS', basename(electronBinary))
-  if (runtimeReady(dir, binary)) return binary
+  if (runtimeReady(dir, binary)) {
+    pruneOld(base, dir)
+    return binary
+  }
 
   try {
     process.stderr.write('stage: setting up Stage.app (once per install or update)…\n')
@@ -235,7 +251,10 @@ async function managedRuntime(): Promise<string> {
   const base = runtimeBase()
   const dir = runtimeDir(base, pin.electron)
   const binary = join(dir, 'Stage.app', 'Contents', 'MacOS', 'Electron')
-  if (runtimeReady(dir, binary)) return binary
+  if (runtimeReady(dir, binary)) {
+    pruneOld(base, dir)
+    return binary
+  }
 
   mkdirSync(base, { recursive: true })
   const arch = archForDownload()
@@ -282,11 +301,7 @@ async function managedRuntime(): Promise<string> {
     cleanTmp()
   }
   if (!runtimeReady(dir, binary)) return fail('could not set up the Chromium runtime.')
-  try {
-    pruneOld(base, dir)
-  } catch {
-    // old runtimes are only disk space
-  }
+  pruneOld(base, dir)
   return binary
 }
 

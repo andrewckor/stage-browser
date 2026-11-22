@@ -173,7 +173,7 @@ stage --help
 ```
 
 - A single-instance lock means a second `stage …` call forwards its arguments to the running window (`second-instance` event) and brings it to the front instead of starting another copy.
-- macOS takes the menu-bar app name, Dock label and icon from the app bundle, so the launcher runs a renamed copy of Electron's bundle: `~/Library/Application Support/Stage/Runtime/electron-<version>-r<n>/Stage.app`. It's an APFS clone with `CFBundleName`/`CFBundleDisplayName` set to Stage, `CFBundleIdentifier` set to `app.stage.browser`, `build/icon.icns` as its icon, re-signed ad-hoc. It's rebuilt when the Electron version or `RUNTIME_REVISION` in `src/bin/stage.ts` changes. `STAGE_PLAIN_ELECTRON=1` skips it.
+- macOS takes the menu-bar app name, Dock label and icon from the app bundle, so the launcher runs a renamed copy of Electron's bundle: `~/Library/Application Support/Stage/Runtime/electron-<version>-r<n>/Stage.app`. It's an APFS clone with `CFBundleName`/`CFBundleDisplayName` set to Stage, `CFBundleIdentifier` set to `app.stage.browser`, `build/icon.icns` as its icon, re-signed ad-hoc. It's rebuilt when the Electron version or `RUNTIME_REVISION` in `src/bin/stage.ts` changes. Other runtimes are removed at launch unless a process is running from them. `STAGE_PLAIN_ELECTRON=1` skips it.
 
 ## Keyboard shortcuts (main process, app menu accelerators)
 
