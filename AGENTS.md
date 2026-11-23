@@ -33,7 +33,7 @@ CI runs all four, the selftest on a macOS runner with a 1024x768 display. Locall
 - **Updates never ask for a password.** For an install Stage can't write to, it shows the command to run instead.
 - **Add no dependency** unless there's no reasonable way around it. Each one ships to everyone.
 - **Keep README.md and docs/CONTRACT.md in step** with any behaviour you change.
-- **UI changes come with before and after screenshots.** Take the same view at the same size on `main` and on your branch, with `npm run ui:preview` or from the selftest's `selftest-out/`. Save them outside the repository and never commit them. `gh` can't attach images to a pull request, so give the person the file paths to add to the description, and say so in your summary if you couldn't take them.
+- **UI changes come with before and after screenshots.** Take the same view at the same size on `main` and on your branch, with `npm run ui:preview` or from the selftest's `selftest-out/`. Never commit them to this repository. Host them in a secret gist: create it with `gh gist create` from a short README, clone it, add the images, push, then link each image in the description by its raw URL, keeping the commit hash in the URL so the pull request always shows those exact images. A secret gist is unlisted, not private, so put nothing in it you wouldn't put in the pull request itself. If you couldn't take them, say so in your summary.
 
 ## Testing without touching the person's Stage
 
