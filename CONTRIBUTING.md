@@ -37,7 +37,8 @@ npm run selftest
 ## Pull requests
 
 - Keep each one to a single change, with tests in `src/main/selftest.ts` when the change has behaviour to check.
-- Describe what changes for someone using Stage, and why. Screenshots help for anything visible.
+- Describe what changes for someone using Stage, and why.
+- **Show anything visible, before and after.** If the change alters what's on screen, put a screenshot from `main` and one from your branch in the description, of the same view at the same window size. `npm run ui:preview` renders the tab bar and address box, and `npm run selftest` saves the main views to `selftest-out/`. For something that moves or animates, add a short screen recording. Take them with a temporary profile so no tabs, accounts or bookmarks of yours end up in a public pull request.
 - Keep `README.md` and `docs/CONTRACT.md` in step with what you change.
 - Don't add a dependency unless there's no reasonable way around it. Each one ships to every user.
 - Don't bump the version in `package.json`. Releases are cut separately.

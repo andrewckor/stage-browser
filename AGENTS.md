@@ -33,6 +33,7 @@ CI runs all four, the selftest on a macOS runner with a 1024x768 display. Locall
 - **Updates never ask for a password.** For an install Stage can't write to, it shows the command to run instead.
 - **Add no dependency** unless there's no reasonable way around it. Each one ships to everyone.
 - **Keep README.md and docs/CONTRACT.md in step** with any behaviour you change.
+- **UI changes come with before and after screenshots.** Take the same view at the same size on `main` and on your branch, with `npm run ui:preview` or from the selftest's `selftest-out/`. Save them outside the repository and never commit them. `gh` can't attach images to a pull request, so give the person the file paths to add to the description, and say so in your summary if you couldn't take them.
 
 ## Testing without touching the person's Stage
 
