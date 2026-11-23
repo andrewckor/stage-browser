@@ -10,7 +10,7 @@ Thanks for helping. Stage is small on purpose, so the bar for new features is hi
 
 ## Setup
 
-Stage runs on macOS only. You need Node 22 or later.
+Stage runs on macOS only. You need Node 22.22.2 or a later 22, 24.15.0 or a later 24, or 26 and later.
 
 ```sh
 git clone https://github.com/andrewckor/stage-browser
