@@ -28,7 +28,7 @@ CI runs all four, the selftest on a macOS runner with a 1024x768 display. Locall
 - **Don't change `version` in package.json.** Merging a version change to `main` publishes to npm.
 - **Don't change the release identity on your own.** That means the repository name, `.github/workflows/release.yml`, the release branch and `SIGNERS` in `src/update/verify.ts`. Installed copies check every update against them, so a change strands them. Follow "Moving the release" in docs/CONTRACT.md, and only when asked.
 - **No test-only switches in shipped code.** No environment variables, flags or branches that exist only so a test can reach in. Put checks in `src/main/selftest.ts`, which is left out of the package.
-- **`src/update/` and `src/bin/` can't import `electron`,** and must run on every Node that `engines` allows, currently 22 and later.
+- **`src/update/` and `src/bin/` can't import `electron`,** and must run on every Node that `engines` allows, currently `^22.22.2 || ^24.15.0 || >=26.0.0`, the range Sigstore needs.
 - **Stage never runs a page's own code, or code of its own in a page it didn't open itself.** The restart check lists a page's listeners through the DevTools protocol. The only thing it evaluates there is the global `window`, to get a handle on it.
 - **Updates never ask for a password.** For an install Stage can't write to, it shows the command to run instead.
 - **Add no dependency** unless there's no reasonable way around it. Each one ships to everyone.

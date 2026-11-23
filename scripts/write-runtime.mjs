@@ -35,9 +35,9 @@ if (loose.length) {
 }
 
 // npm holds bundled packages to their own `engines` on an upgrade, but not on a first install.
-// Sigstore names only recent Node patch releases, so on an older Node 22 or 24 the next upgrade
-// would warn thirty times, or fail with engine-strict. The bundle ships as one package with one
-// range, Stage's own, so this drops that one metadata field in node_modules before npm packs it.
+// Stage's own range is the one Sigstore needs, so on a Node outside it npm would warn once for
+// Stage and thirty times more for its bundle. The bundle ships as one package with one range,
+// Stage's own, so this drops that one metadata field in node_modules before npm packs it.
 const lock = JSON.parse(readFileSync(join(root, 'package-lock.json'), 'utf8'))
 for (const [dir, entry] of Object.entries(lock.packages)) {
   if (!dir || entry.dev) continue
