@@ -1,6 +1,8 @@
 // Scripted self-test: `npm run selftest`. No human input. Writes results.json and PNGs, exits 0 or 1.
 import { app, BaseWindow, BrowserWindow, Menu, screen, shell, type NativeImage, type Rectangle, type Size } from 'electron'
 import { execFileSync } from 'node:child_process'
+import { createServer } from 'node:http'
+import type { AddressInfo } from 'node:net'
 import { createHash, generateKeyPairSync, sign } from 'node:crypto'
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -198,8 +200,39 @@ const once = (win: BaseWindow, event: 'enter-full-screen' | 'leave-full-screen' 
     })
   })
 
+// The pages the selftest browses, served from this process so a slow or changed website can't fail
+// a run or change a screenshot. Two hosts reach the same server, for checks that need a second site.
+// The icon is a data URL because the UI's content policy doesn't load images over plain http.
+const TEST_ICON = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><rect width="16" height="16" rx="3" fill="#e83e8c"/></svg>')
+
+const testPage = (title: string, color: string, heading: string) =>
+  '<!doctype html><meta charset="utf-8">' +
+  `<title>${title}</title><link rel="icon" href="${TEST_ICON}">` +
+  '<style>html,body{margin:0;height:100%}' +
+  'header{background:#e83e8c;color:#fff;font:600 14px system-ui;letter-spacing:.12em;text-align:center;padding:10px}' +
+  `main{background:${color};height:calc(100% - 37px);display:grid;place-items:center;font:700 40px Georgia,serif}</style>` +
+  `<header>PAGE TOP ▲ y=0</header><main>${heading}</main>`
+
+const TEST_PAGES: Record<string, string> = {
+  '/': testPage('Stage Test Page', '#5bc463', 'STAGE TEST PAGE'),
+  '/wiki/Web_browser': testPage('Web browser - Stage Test Wiki', '#3a63f5', 'WEB BROWSER'),
+  '/wiki/Google_Chrome': testPage('Google Chrome - Stage Test Wiki', '#f5c93a', 'GOOGLE CHROME'),
+}
+
+async function serveTestPages(): Promise<{ origin: string; other: string }> {
+  const server = createServer((req, res) => {
+    const html = TEST_PAGES[new URL(req.url ?? '/', 'http://x').pathname] ?? TEST_PAGES['/']
+    res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' }).end(html)
+  })
+  await new Promise<void>((r) => server.listen(0, '127.0.0.1', r))
+  server.unref()
+  const { port } = server.address() as AddressInfo
+  return { origin: `http://127.0.0.1:${port}`, other: `http://localhost:${port}` }
+}
+
 export async function run(ctx: Ctx): Promise<void> {
   mkdirSync(OUT, { recursive: true })
+  const pages = await serveTestPages()
   const results: Result[] = []
   const uncaught: string[] = []
   ctx.holdQuit = true // keep the app alive after the close-window check so results get written
@@ -251,18 +284,18 @@ export async function run(ctx: Ctx): Promise<void> {
   let t1!: Tab
   let t2!: Tab
   const openWorkingSet = () => {
-    t1 = tabs.create({ url: 'https://example.com', activate: true })
-    t2 = tabs.create({ url: 'https://en.wikipedia.org/wiki/Web_browser', activate: false })
+    t1 = tabs.create({ url: `${pages.origin}/`, activate: true })
+    t2 = tabs.create({ url: `${pages.origin}/wiki/Web_browser`, activate: false })
   }
 
   await check('launch with two URLs: both load with title', async () => {
     openWorkingSet()
     await waitFor(() => loaded(t1) && loaded(t2))
-    return { pass: /Example Domain/.test(t1.title) && /Web browser/i.test(t2.title), detail: `${t1.title} | ${t2.title}` }
+    return { pass: /Stage Test Page/.test(t1.title) && /Web browser/i.test(t2.title), detail: `${t1.title} | ${t2.title}` }
   })
   only([t1, t2]) // drop the fresh tab that replaced the one closed above
 
-  await check('favicon and state pushed (wikipedia)', async () => {
+  await check('favicon and state pushed', async () => {
     await waitFor(() => t2.favicon, 15_000).catch(() => {})
     const w = ctx.getState().tabs.find((t) => t.id === t2.id)
     return { pass: !!(w?.favicon && w.title && w.url), detail: `favicon=${w?.favicon}` }
@@ -291,7 +324,8 @@ export async function run(ctx: Ctx): Promise<void> {
   })
 
   // Each case ends somewhere else than it starts. Redirects across the sign-in host used to
-  // abort Electron, so reaching the end of the list is itself part of the check.
+  // abort Electron, so reaching the end of the list is itself part of the check. The one check that
+  // goes online: what it tests is how Google's own redirects behave.
   await check('google sign-in sees Firefox, other sites see Chrome, across redirects', async () => {
     let sent: Record<string, string> = {}
     ctx.session.webRequest.onSendHeaders({ urls: ['https://accounts.google.com/*'] }, (d) => {
@@ -313,7 +347,7 @@ export async function run(ctx: Ctx): Promise<void> {
         { name: 'direct', ...(await visit('https://accounts.google.com/ServiceLogin?hl=en', true)) },
         { name: 'redirect in', ...(await visit('https://www.google.com/accounts/ServiceLogin?hl=en', true)) },
         { name: 'redirect out', ...(await visit('https://accounts.google.com/Logout?continue=https://www.google.com/&hl=en', false)) },
-        { name: 'elsewhere', ...(await visit('https://example.com/', false)) },
+        { name: 'elsewhere', ...(await visit(`${pages.origin}/`, false)) },
       ]
       const wrong = cases.filter((c) => {
         const firefox = isGoogleSignIn(c.url)
@@ -522,7 +556,7 @@ export async function run(ctx: Ctx): Promise<void> {
   })
 
   await check("suggest('wiki') returns open tab + history", async () => {
-    const t3 = tabs.create({ url: 'https://en.wikipedia.org/wiki/Google_Chrome', activate: false })
+    const t3 = tabs.create({ url: `${pages.origin}/wiki/Google_Chrome`, activate: false })
     await waitFor(() => loaded(t3))
     tabs.close(t3.id)
     const s = suggest(tabs.list, 'wiki')
@@ -969,7 +1003,7 @@ export async function run(ctx: Ctx): Promise<void> {
   const LINKS_PAGE =
     'data:text/html,' +
     encodeURIComponent(
-      '<a id="blank" target="_blank" href="https://example.com/?from=blank">blank</a>' +
+      `<a id="blank" target="_blank" href="${pages.origin}/?from=blank">blank</a>` +
         '<script>window.openWithOpener = () => { const w = window.open("about:blank"); return !!w && !w.closed && w.opener === window }</script>',
     )
   const openLinksPage = async () => {
@@ -1182,12 +1216,12 @@ export async function run(ctx: Ctx): Promise<void> {
       tabs.activate(t1.id)
       await ctx.session.extensions.loadExtension(dir)
       const line = await waitFor(() => diag.swConsole.find((l) => l.includes('PROBE')), 10_000).catch(() => null)
-      return { pass: !!line?.includes('PROBE:Example Domain'), detail: line ?? 'no probe output' }
+      return { pass: !!line?.includes('PROBE:Stage Test Page'), detail: line ?? 'no probe output' }
     })
 
     // Regression: a tracker iframe whose URL contains a UUID made Okta take over the tab, because
     // webNavigation URL filters were ignored.
-    const UUID_IFRAME_PAGE = 'data:text/html,' + encodeURIComponent('<h1>host</h1><iframe src="https://example.com/?id=11111111-2222-4333-8444-555555555555"></iframe>')
+    const UUID_IFRAME_PAGE = 'data:text/html,' + encodeURIComponent(`<h1>host</h1><iframe src="${pages.other}/?id=11111111-2222-4333-8444-555555555555"></iframe>`)
 
     await check('webNavigation URL filters: listeners hear only matching URLs', async () => {
       const dir = writeExtension(
@@ -1197,7 +1231,7 @@ export async function run(ctx: Ctx): Promise<void> {
           'sw.js': `
             const oktaLike = '^https://personal\\\\.okta\\\\.com/okta-personal-app/([0-9a-f-]{36})/launch'
             chrome.webNavigation.onBeforeNavigate.addListener((d) => console.log('NAVOKTA:' + d.url), { url: [{ urlMatches: oktaLike }] })
-            chrome.webNavigation.onBeforeNavigate.addListener((d) => console.log('NAVORG:' + d.url), { url: [{ hostEquals: 'example.org' }] })
+            chrome.webNavigation.onBeforeNavigate.addListener((d) => console.log('NAVORG:' + d.url), { url: [{ hostEquals: '127.0.0.1' }] })
             chrome.webNavigation.onBeforeNavigate.addListener((d) => { if (d.url.includes('11111111-2222')) console.log('NAVALL:' + d.url) })`,
         },
       )
@@ -1205,11 +1239,11 @@ export async function run(ctx: Ctx): Promise<void> {
       await sleep(1000)
       const tab = tabs.create({ url: UUID_IFRAME_PAGE, activate: true })
       await waitFor(() => heard('NAVALL:') > 0, 10_000).catch(() => {})
-      tab.wc.loadURL('https://example.org/').catch(() => {})
+      tab.wc.loadURL(`${pages.origin}/org`).catch(() => {})
       await waitFor(() => heard('NAVORG:') > 0, 10_000).catch(() => {})
       tabs.close(tab.id)
-      const ok = heard('NAVALL:') > 0 && heard('NAVOKTA:') === 0 && heard('NAVORG:') > 0 && heard('NAVORG:https://example.com') === 0
-      return { pass: ok, detail: `unfiltered=${heard('NAVALL:')} oktaPattern=${heard('NAVOKTA:')} example.org=${heard('NAVORG:')}` }
+      const ok = heard('NAVALL:') > 0 && heard('NAVOKTA:') === 0 && heard('NAVORG:') > 0 && heard('NAVORG:' + pages.other) === 0
+      return { pass: ok, detail: `unfiltered=${heard('NAVALL:')} oktaPattern=${heard('NAVOKTA:')} second host=${heard('NAVORG:')}` }
     })
 
     await check('Okta does not take over a tab when an iframe URL contains a UUID', async () => {
