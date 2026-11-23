@@ -1,4 +1,4 @@
-import { screen } from 'electron'
+import { BaseWindow, screen } from 'electron'
 import type { OmniboxMode, Overlay } from '../shared/contract'
 import type { Ctx } from './context'
 import { BAR_HEIGHT, SIDEBAR_WIDTH } from './window'
@@ -51,8 +51,12 @@ export class Reveal {
     if (!this.live) return this.stop()
     const { along, depth } = this.cursor()
     const side = ctx.prefs.tabLayout !== 'top'
-    this.syncPointer(along && depth >= 0 && depth < (side ? SIDEBAR_WIDTH : BAR_HEIGHT))
-    if (along && depth >= 0 && depth <= REVEAL_PX) {
+    // The cursor is polled across the whole screen, so it can touch the edge while another app
+    // covers Stage. Showing the UI window then orders Stage in front of that app, so only reveal
+    // while one of Stage's windows has focus.
+    const active = BaseWindow.getFocusedWindow() !== null
+    this.syncPointer(active && along && depth >= 0 && depth < (side ? SIDEBAR_WIDTH : BAR_HEIGHT))
+    if (active && along && depth >= 0 && depth <= REVEAL_PX) {
       this.awaySince = null
       return this.show()
     }

@@ -56,7 +56,7 @@ Relative to the page window's content area (`W × H`), at the same screen origin
 
 ### Showing and hiding
 
-- Main polls the cursor (~60 ms). When the window is visible and the cursor is inside the window horizontally and within **6 px** of the top of the content area, the bar is revealed.
+- Main polls the cursor (~60 ms). When the window is visible, one of Stage's windows has focus, and the cursor is inside the window horizontally and within **6 px** of the top of the content area, the bar is revealed. The focus check matters because the poll sees the cursor over other apps too, and showing the UI window would bring Stage in front of them.
 - The bar hides once the cursor has been below `BAR_HEIGHT + 24` px for **350 ms**, unless: the bar is pinned, an overlay is open, the UI reports hover (`setBarHover(true)`), or an extension popup is open.
 - Reveal order: main pushes `bar.visible = true`, then shows the UI window. The UI animates in.
 - Hide order: main pushes `bar.visible = false`; the UI plays its exit animation (≤ 160 ms); main hides the UI window 180 ms later if the bar is still hidden.
