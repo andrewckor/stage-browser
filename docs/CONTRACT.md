@@ -239,6 +239,8 @@ A global swap is two renames on the same volume, each atomic. Power lost between
 
 The helper runs on Stage's own Node, but the `stage` command runs on the person's. The launcher passes that version to the app as `STAGE_NODE`, and an update is refused, with nothing changed, unless the new version's `engines.node` accepts it. `src/update/version.ts` reads the range syntax npm uses: `||`, space-joined comparators, `^`, `~`, `x` and partial versions. `*` or an empty range accepts any Node. A range it can't read, or a prerelease Node, is refused, and the person is told to update from Terminal.
 
+The new version's code also runs on the old Stage's Node, which nothing checks: the helper prepares the new runtime by running the new launcher (`--prepare-runtime`) with the running Stage's Electron as Node. So `src/bin/` and `src/update/` must keep working on the Node inside every Electron a self-updating Stage has shipped, the oldest being Electron 45 (Node 24.22) in Stage 0.4.0. `engines.node` can rise above that only once the helper checks its own Node first.
+
 ### Several installs
 
 Each Node version manager (asdf, nvm, Homebrew) has its own global prefix, so one Mac can hold several copies of Stage, all sharing one profile. Updating one leaves the others behind.
