@@ -21,7 +21,7 @@ npm audit --audit-level=moderate
 npm run selftest
 ```
 
-CI runs the first three. The selftest needs a Mac with an unlocked display. If you can't run it, say so in your summary rather than leaving it out.
+CI runs all four, the selftest on a macOS runner with a 1024x768 display. Locally it needs a Mac with an unlocked display. If you can't run it, say so in your summary rather than leaving it out.
 
 ## Rules
 

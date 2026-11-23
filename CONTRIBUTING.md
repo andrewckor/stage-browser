@@ -23,7 +23,7 @@ npm start
 
 ## Before you open a pull request
 
-Run all four. CI runs the first three, but only you can run the selftest, because it needs a Mac with a display.
+Run all four. CI runs them too, the selftest on a macOS runner whose screenshots it keeps with the run, but running them first saves a round trip.
 
 ```sh
 npm run typecheck
