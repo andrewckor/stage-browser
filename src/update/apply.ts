@@ -1,6 +1,6 @@
 // Gets a release ready while Stage keeps running, then moves over to it once Stage has quit.
 import { randomBytes } from 'node:crypto'
-import { mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, renameSync, rmSync, unlinkSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, renameSync, rmSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 import type { UpdateStep } from '../shared/contract'
@@ -9,7 +9,7 @@ import { canUpdateItself, type Install } from './install'
 import { PREPARE_RUNTIME, QUIT_RUNNING, runLauncher } from './launcher'
 import { assertRunsOn, unpack } from './package'
 import { get, tarballUrl } from './registry'
-import { alive, findRunning, waitForExit, type Running } from './running'
+import { alive, findRunning, startedAfter, waitForExit, type Running } from './running'
 import { saveCheck } from './state'
 import { verifyRelease } from './verify'
 import { isStable } from './version'
@@ -70,7 +70,8 @@ export function lockUpdates(userData: string): void {
     }
     try {
       const owner = Number(readFileSync(file, 'utf8'))
-      if (Number.isSafeInteger(owner) && owner > 1 && alive(owner)) break
+      // A crashed update leaves its lock behind, and its pid can later belong to anything.
+      if (Number.isSafeInteger(owner) && owner > 1 && alive(owner) && !startedAfter(owner, statSync(file).mtimeMs)) break
       unlinkSync(file)
     } catch {
       // released in the meantime

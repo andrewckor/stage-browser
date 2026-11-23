@@ -228,7 +228,7 @@ stage --help | --version
 | `manual` | anything someone else owns | shows a command, built from constants only |
 | `dev` | a source checkout | never updates itself |
 
-1. The helper (`src/update/helper.ts`, Stage's Electron running as Node), `stage update` or `stage --restart` takes `Updates/.lock`.
+1. The helper (`src/update/helper.ts`, Stage's Electron running as Node), `stage update` or `stage --restart` takes `Updates/.lock`, which holds its pid. A lock left by a process that has ended is taken over, including when the system has since given that pid to a process started after the lock was written.
 2. The helper installs the version that was announced, the one the person saw, not whatever npm calls latest by then. If npm's latest has gone back below it, that release was pulled, and the helper stops. `stage update` is asked by hand and takes npm's latest. It downloads the tarball and verifies it, unpacks it, checks the new version's `engines.node` against the person's Node, and prepares its runtime, all while Stage runs. A failure or cancel up to here changes nothing.
 3. Stage saves and quits. It is never killed.
 4. The new copy moves into place and starts. The update counts once running.json says that version is `ready`. If it doesn't start, the previous version is put back and reopened.

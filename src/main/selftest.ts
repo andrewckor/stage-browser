@@ -1,10 +1,10 @@
 // Scripted self-test: `npm run selftest`. No human input. Writes results.json and PNGs, exits 0 or 1.
 import { app, BaseWindow, BrowserWindow, Menu, screen, shell, type NativeImage, type Rectangle, type Size } from 'electron'
-import { execFileSync } from 'node:child_process'
+import { execFileSync, spawn } from 'node:child_process'
 import { createServer } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { createHash, generateKeyPairSync, sign } from 'node:crypto'
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync, existsSync } from 'node:fs'
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, utimesSync, writeFileSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { crc32 } from 'node:zlib'
@@ -18,6 +18,7 @@ import { readPrefs } from './store'
 import { suggest } from './suggest'
 import { NEWTAB_FILE, type Tab } from './tabs'
 import { resolveInput } from './url'
+import { lockUpdates } from '../update/apply'
 import { NAME, launcherOf, updatesDir } from '../update/common'
 import { detectInstall, type InstallKind } from '../update/install'
 import { unpack } from '../update/package'
@@ -463,6 +464,32 @@ export async function run(ctx: Ctx): Promise<void> {
     const leak = got.some((i) => i.command.includes(base))
     const sudo = got[cases.findIndex(([root]) => root === system)]?.command.startsWith('sudo npm i -g ')
     return { pass: !bad.length && !leak && !!sudo, detail: `${bad.join('; ')} pathInCommand=${leak} sudo=${sudo}` }
+  })
+
+  await check('update lock: a live holder refuses, a pid reused since the lock is taken over', async () => {
+    const userData = mkdtempSync(join(tmpdir(), 'stage-lock-'))
+    const file = join(updatesDir(userData), '.lock')
+    const locks = (): boolean => {
+      try {
+        lockUpdates(userData)
+        return true
+      } catch {
+        return false
+      }
+    }
+    // A process started now, holding a lock written an hour ago: the pid that wrote it is gone.
+    const other = spawn('/bin/sleep', ['30'], { stdio: 'ignore' })
+    mkdirSync(updatesDir(userData), { recursive: true })
+    writeFileSync(file, String(other.pid))
+    const hourAgo = new Date(Date.now() - 3600_000)
+    utimesSync(file, hourAgo, hourAgo)
+    const reused = locks()
+    const owner = readFileSync(file, 'utf8')
+    // Now this process holds it, and has since before the lock was written.
+    const held = locks()
+    other.kill()
+    rmSync(userData, { recursive: true, force: true })
+    return { pass: reused && owner === String(process.pid) && !held, detail: `reusedTaken=${reused} owner=${owner === String(process.pid) ? 'self' : owner} liveRefused=${!held}` }
   })
 
   await check('update packages: unsigned, linked, misnamed and incomplete ones are refused', async () => {

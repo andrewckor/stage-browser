@@ -14,6 +14,26 @@ export interface Running {
 
 const recordFile = (userData: string) => join(userData, 'running.json')
 
+/**
+ * Whether `pid` is a process that started after `ms`, so it can't be the one that wrote a file at
+ * `ms`: that process ended and the system gave its pid to another. ps reports the start to the
+ * whole second, rounded down, so a reused pid is missed only within the second the file was written.
+ * False when ps can't tell.
+ */
+export function startedAfter(pid: number, ms: number): boolean {
+  try {
+    const started = execFileSync('/bin/ps', ['-p', String(pid), '-o', 'lstart='], {
+      encoding: 'utf8',
+      env: { ...process.env, LC_ALL: 'C' },
+      stdio: ['ignore', 'pipe', 'ignore'],
+    })
+    const at = Date.parse(started.trim())
+    return Number.isFinite(at) && at > ms
+  } catch {
+    return false
+  }
+}
+
 export function alive(pid: number): boolean {
   try {
     process.kill(pid, 0)
