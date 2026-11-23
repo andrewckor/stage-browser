@@ -11,6 +11,7 @@
     "start": "npm run build && electron .",
     "selftest": "npm run build && STAGE_SELFTEST=1 electron .",
     "ui:preview": "npm run build && node scripts/ui-preview.mts",
+    "test:updates": "npm run build && node test/updates/run.mjs",
     "cli:install": "sh scripts/install-cli.sh",
     "lint": "oxlint --deny-warnings",
     "lint:fix": "oxlint --fix"
