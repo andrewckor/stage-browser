@@ -309,9 +309,10 @@ S.guard = async (b = new Box('install needs the open popover')) => {
 S.checks = async (b = new Box('checks: by hand, automatic, opt-out', { extra: { E2E_ACTIVE: '1' } })) => {
   b.global('0.4.0'); srv.log = []
   await b.open(['--pin']); await sleep(1000)
-  check('no request at launch', !srv.log.length, srv.log)
   check('no button', !(await b.panel()).button)
-  check('first automatic check after 30 s', !!(await until(() => srv.log.length, 45000)))
+  // Stage looks 30 s after launch and whenever it becomes active. Where nothing else has focus, as on
+  // a CI runner, launching makes it active, so this first check can come at once.
+  check('first automatic check within 30 s', !!(await until(() => srv.log.length, 45000)))
   await sleep(1000)
   check('first sighting is not announced', !(await b.panel()).button && b.json('update.json')?.latest === '0.5.0', b.json('update.json'))
   const h = srv.log[0]?.headers ?? {}
