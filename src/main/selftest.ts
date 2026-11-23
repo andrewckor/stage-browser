@@ -935,8 +935,14 @@ export async function run(ctx: Ctx): Promise<void> {
   await check('content size 1280x720 sets and centers', async () => {
     win.setContentSize(1280, 720)
     win.center()
-    const [w, h] = win.getContentSize()
-    return { pass: w === 1280 && h === 720, detail: `${w}x${h}` }
+    const [w = 0, h = 0] = win.getContentSize()
+    const [, outerH = 0] = win.getSize()
+    // macOS keeps a window inside the screen's height, so on a small display (CI runners
+    // have 1024x768) 720 tall can't fit and is shrunk. Only demand the full height when it fits.
+    const area = screen.getDisplayMatching(win.getBounds()).workArea
+    const fits = 720 + (outerH - h) <= area.height
+    const pass = w === 1280 && (fits ? h === 720 : h > 0 && h <= area.height)
+    return { pass, detail: `${w}x${h} workArea=${area.width}x${area.height}` }
   })
 
   await check('external scheme from page opens via shell, not in tab', async () => {
