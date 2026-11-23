@@ -11,6 +11,7 @@ Notes for coding agents working on Stage. People should start with [CONTRIBUTING
 - `src/bin/stage.ts`: the `stage` command. It runs on the person's own Node, not Electron's.
 - `src/update/`: finding, verifying and installing new versions. Runs as plain Node, in the update helper and in the `stage` command.
 - `scripts/`: build and release helpers.
+- `test/updates/`: end-to-end tests of updating, against throwaway installs and a fake npm registry.
 
 ## Checks
 
@@ -22,6 +23,8 @@ npm run selftest
 ```
 
 CI runs all four, the selftest on a macOS runner with a 1024x768 display. Locally it needs a Mac with an unlocked display. If you can't run it, say so in your summary rather than leaving it out.
+
+If you change anything in `src/update/`, `src/bin/` or `src/main/updates.ts`, also run `npm run test:updates` ([test/updates/README.md](test/updates/README.md)), or the scenarios your change touches. CI runs it on Node 22, 24 and 26. Test hooks go in `test/updates/fixtures.mjs`, which patches them into throwaway copies, never into `src/`.
 
 ## Rules
 

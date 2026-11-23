@@ -1,7 +1,9 @@
 # Typecheck, lint and build on every push and PR. The release workflow runs
 # its own copy of these, so a broken version bump can't publish. The selftest
 # job runs the scripted end-to-end checks in a real window on the runner's
-# desktop and keeps the screenshots.
+# desktop and keeps the screenshots. The updates job installs throwaway copies
+# of this build and updates between them, once per Node major that `stage`
+# may run on.
 
 name: Checks
 
@@ -56,3 +58,23 @@ jobs:
           path: selftest-out/
           if-no-files-found: warn
           retention-days: 14
+
+  updates:
+    runs-on: macos-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [22, 24, 26]
+    env:
+      ELECTRON_SKIP_BINARY_DOWNLOAD: 1 # the tests download Stage's own runtime
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: npm ci
+      - run: npm run test:updates

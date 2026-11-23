@@ -32,7 +32,7 @@ npm audit --audit-level=moderate
 npm run selftest
 ```
 
-`npm run selftest` drives a real Stage window and writes `selftest-out/results.json` with screenshots. If you change the tab bar or address box, `npm run ui:preview` renders them without launching Stage.
+`npm run selftest` drives a real Stage window and writes `selftest-out/results.json` with screenshots. If you change the tab bar or address box, `npm run ui:preview` renders them without launching Stage. If you change how Stage updates, run `npm run test:updates` too ([test/updates/README.md](test/updates/README.md)).
 
 ## Pull requests
 
