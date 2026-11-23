@@ -29,7 +29,7 @@ CI runs the first three. The selftest needs a Mac with an unlocked display. If y
 - **Don't change the release identity on your own.** That means the repository name, `.github/workflows/release.yml`, the release branch and `SIGNERS` in `src/update/verify.ts`. Installed copies check every update against them, so a change strands them. Follow "Moving the release" in docs/CONTRACT.md, and only when asked.
 - **No test-only switches in shipped code.** No environment variables, flags or branches that exist only so a test can reach in. Put checks in `src/main/selftest.ts`, which is left out of the package.
 - **`src/update/` and `src/bin/` can't import `electron`,** and must run on every Node that `engines` allows, currently 22 and later.
-- **Stage never runs code in a page it didn't open itself.** The restart check lists a page's listeners through the DevTools protocol and never evaluates anything there.
+- **Stage never runs a page's own code, or code of its own in a page it didn't open itself.** The restart check lists a page's listeners through the DevTools protocol. The only thing it evaluates there is the global `window`, to get a handle on it.
 - **Updates never ask for a password.** For an install Stage can't write to, it shows the command to run instead.
 - **Add no dependency** unless there's no reasonable way around it. Each one ships to everyone.
 - **Keep README.md and docs/CONTRACT.md in step** with any behaviour you change.

@@ -163,7 +163,8 @@ export class Updates {
       else void this.commitUnlessWarned()
       return
     }
-    if (this.starting || !this.available || !this.canInstall) return
+    const announced = this.available
+    if (this.starting || !announced || !this.canInstall) return
 
     this.show({ ...IDLE, status: 'working', step: 'download' })
     const token = Symbol('install')
@@ -171,7 +172,7 @@ export class Updates {
     void this.helperEnv().then((env) => {
       if (this.starting !== token) return // cancelled
       this.starting = null
-      if (!ctx.quitting) this.startHelper(env)
+      if (!ctx.quitting) this.startHelper(env, announced)
     })
   }
 
@@ -189,10 +190,10 @@ export class Updates {
     return withAdded(env, networkEnv(env, new Map(answers)))
   }
 
-  private startHelper(env: NodeJS.ProcessEnv): void {
+  private startHelper(env: NodeJS.ProcessEnv, announced: string): void {
     const { ctx } = this
     const { root, userData, version } = this.options
-    const helper = spawn(process.execPath, [join(root, 'dist', 'update', 'helper.js'), userData, String(process.pid), version], {
+    const helper = spawn(process.execPath, [join(root, 'dist', 'update', 'helper.js'), userData, String(process.pid), version, announced], {
       cwd: homedir(),
       env,
       detached: true, // it outlives this process

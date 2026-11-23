@@ -13,11 +13,16 @@ export interface LaunchArgs {
 const SIZE = /^(\d{2,5})x(\d{2,5})$/i
 
 // argv is shaped like [electron, appPath, ...args], possibly with switches before the app path, so
-// anchor on that path when it is known. Chromium switches are ignored.
+// anchor on that path when it is known.
+export function appArgs(argv: readonly string[], appRoot?: string): string[] {
+  const at = appRoot ? argv.findIndex((a) => a === appRoot || a === '.') : -1
+  return at >= 0 ? argv.slice(at + 1) : argv.slice(2)
+}
+
+// Chromium switches are ignored.
 export function parseArgs(argv: readonly string[], appRoot?: string): LaunchArgs {
   const out: LaunchArgs = { urls: [], size: null, pin: false, fresh: false }
-  const at = appRoot ? argv.findIndex((a) => a === appRoot || a === '.') : -1
-  const args = at >= 0 ? argv.slice(at + 1) : argv.slice(2)
+  const args = appArgs(argv, appRoot)
   for (let i = 0; i < args.length; i++) {
     const a = args[i]
     if (!a || a === '--fg') continue

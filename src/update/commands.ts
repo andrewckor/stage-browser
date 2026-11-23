@@ -57,6 +57,7 @@ export async function restart(ctx: Context): Promise<void> {
   if (running?.version && isNewer(running.version, ctx.version))
     throw new UpdateError(`Stage ${running.version} is open, which is newer than this ${ctx.version}. Nothing changed.`)
   const commit = cancellable()
+  lockUpdates(ctx.userData) // an update may be moving folders and starting Stage
   if (running) say(`Getting Stage ${ctx.version} ready…`)
   await open(await prepareInstalled(ctx.root, { echo: true }), ctx, commit)
 }

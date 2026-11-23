@@ -18,8 +18,8 @@ Anything that lets a web page, an extension or a download do more than it should
 - Installing or updating an extension without its Chrome Web Store signature being verified, or with more access than you approved.
 - Updating Stage to a release without npm provenance from this repository's release workflow, to an older release, or without you asking.
 - An update running `sudo` or asking for your password. For an install it can't write to, Stage only shows the command.
-- The `stage` command handing off to a copy of Stage outside an npm install, or to one that isn't newer than itself.
-- The restart check running code in a page. It only lists the page's listeners.
+- The `stage` command handing off to a copy of Stage that npm, npx or Stage's updater didn't install, or to one that isn't newer than itself.
+- The restart check running a page's code, or anything of its own there beyond reading `window` to list the page's listeners.
 - Running a Chromium runtime that doesn't match its pinned SHA-256.
 - The `stage` command opening something other than the URL it was given.
 - Saved sessions, cookies or logins readable by another site.

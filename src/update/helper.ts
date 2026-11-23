@@ -1,5 +1,8 @@
 // The process behind the Update button: Stage's own Electron running as Node, started by the main
-// process with `<userData> <pid> <version>`. It takes nothing from the renderer or any page.
+// process with `<userData> <pid> <version> <announced>`. It takes nothing from the renderer or any page.
+//
+// It installs the version Stage announced, the one the person saw, never whatever npm says at that moment:
+// a release published since then hasn't had its hour (src/update/state.ts).
 //
 // It gets everything ready while Stage runs, reports 'ready' and waits. Only 'go' from Stage commits;
 // losing the channel before that cancels and changes nothing.
@@ -12,7 +15,7 @@ import { fetchLatest } from './registry'
 import { waitForExit } from './running'
 import { saveCheck } from './state'
 import { useNodeDigestDefaults } from './verify'
-import { isNewer, isVersion } from './version'
+import { isNewer, isStable, isVersion } from './version'
 
 export type HelperMessage = { type: 'progress'; progress: Progress; version: string } | { type: 'ready'; version: string } | { type: 'error'; message: string }
 
@@ -25,9 +28,9 @@ const send = (message: HelperMessage) => {
 let committed = false
 
 async function main(): Promise<void> {
-  const [userData, pidArg, running] = process.argv.slice(2)
+  const [userData, pidArg, running, announced] = process.argv.slice(2)
   const pid = Number(pidArg)
-  if (!userData || !Number.isSafeInteger(pid) || pid <= 1 || !isVersion(running) || !process.connected) return process.exit(2)
+  if (!userData || !Number.isSafeInteger(pid) || pid <= 1 || !isVersion(running) || !isStable(announced) || !process.connected) return process.exit(2)
 
   const go = new Promise<void>((done) => {
     process.on('message', (m) => {
@@ -65,7 +68,8 @@ async function main(): Promise<void> {
   let target: Target
   // npm or npx may have replaced this folder since Stage started; then a restart is all it takes.
   if (isNewer(installed, running) && !isNewer(latest, installed)) target = await prepareInstalled(root, report(installed))
-  else if (isNewer(latest, installed) && isNewer(latest, running)) target = await prepareRelease(install, userData, latest, report(latest))
+  else if (isNewer(announced, latest)) throw new UpdateError(`Stage ${announced} is no longer the latest release on npm. Nothing changed.`)
+  else if (isNewer(announced, installed) && isNewer(announced, running)) target = await prepareRelease(install, userData, announced, report(announced))
   else throw new UpdateError('There’s no newer version to install right now.')
 
   send({ type: 'ready', version: target.version })

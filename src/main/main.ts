@@ -4,7 +4,7 @@ import { appendFileSync, existsSync, mkdtempSync, statSync, truncateSync } from 
 import { homedir, tmpdir } from 'node:os'
 import { basename, extname, join, resolve } from 'node:path'
 import { channel, type Overlay, type StageState, type TabLayout } from '../shared/contract'
-import { parseArgs, readHandoff, type Handoff, type LaunchArgs } from './cli-args'
+import { appArgs, parseArgs, readHandoff, type Handoff, type LaunchArgs } from './cli-args'
 import type { BarFlags, Ctx } from './context'
 import { actionCount, createExtensions, setupExtensionStore } from './extensions'
 import { setupGoogleSignIn } from './google-sign-in'
@@ -68,7 +68,8 @@ if (!SELFTEST) {
 }
 
 const launch: LaunchArgs = SELFTEST ? { urls: [], size: null, pin: false, fresh: true } : parseArgs(process.argv, APP_ROOT)
-const asksToQuit = !SELFTEST && process.argv.includes(QUIT_RUNNING)
+// Only first, the way the launcher passes it: `stage <url> --quit-running` is not a quit request.
+const asksToQuit = !SELFTEST && appArgs(process.argv, APP_ROOT)[0] === QUIT_RUNNING
 const handoff: Handoff = { args: launch, quit: asksToQuit }
 const primary = SELFTEST || app.requestSingleInstanceLock({ ...handoff })
 // A quit request that got the lock found no Stage to quit.
